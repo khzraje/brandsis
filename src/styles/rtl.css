@@ -1,0 +1,85 @@
+/* دعم اتجاه النص للغات RTL */
+.dir-rtl {
+  direction: rtl;
+}
+
+.dir-ltr {
+  direction: ltr;
+}
+
+/* تخصيصات للنصوص العربية والكردية */
+.dir-rtl .space-x-reverse > * + * {
+  margin-left: 0;
+  margin-right: var(--tw-space-x-reverse);
+}
+
+.dir-rtl .space-x-reverse {
+  --tw-space-x-reverse: 0;
+}
+
+/* تخصيصات للأرقام */
+.number-arabic {
+  font-family: 'Courier New', monospace;
+  direction: ltr;
+  text-align: left;
+}
+
+/* تخصيصات للنصوص المختلطة */
+.mixed-text {
+  unicode-bidi: plaintext;
+}
+
+/* تخصيصات للعناصر التفاعلية */
+.dir-rtl button,
+.dir-rtl input,
+.dir-rtl select,
+.dir-rtl textarea {
+  text-align: right;
+}
+
+.dir-ltr button,
+.dir-ltr input,
+.dir-ltr select,
+.dir-ltr textarea {
+  text-align: left;
+}
+
+/* تخصيصات للأيقونات */
+.dir-rtl .lucide {
+  transform: scaleX(-1);
+}
+
+/* تخصيصات للتنقل */
+.dir-rtl nav {
+  flex-direction: row-reverse;
+}
+
+/* تخصيصات للجداول */
+.dir-rtl table {
+  direction: rtl;
+}
+
+.dir-rtl th,
+.dir-rtl td {
+  text-align: right;
+}
+
+/* تخصيصات للنماذج */
+.dir-rtl form {
+  direction: rtl;
+}
+
+.dir-rtl label {
+  text-align: right;
+}
+
+/* تخصيصات للرسائل */
+.message-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.message-ltr {
+  direction: ltr;
+  text-align: left;
+}
