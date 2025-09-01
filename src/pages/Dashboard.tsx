@@ -64,7 +64,17 @@ const Dashboard = () => {
             <div className="text-2xl font-bold text-foreground number-arabic">
               {isLoading ? "..." : formatCurrency(stats?.totalDebts, currencySettings?.currency)}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-sm text-muted-foreground space-y-1 mt-2">
+              <div className="flex justify-between">
+                <span>دينار عراقي:</span>
+                <span className="font-medium">{isLoading ? "..." : formatCurrency(stats?.totalDebtsIQD, 'IQD')}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>دولار أمريكي:</span>
+                <span className="font-medium">{isLoading ? "..." : formatCurrency(stats?.totalDebtsUSD, 'USD')}</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
               <TrendingUp className="inline w-3 h-3 ml-1 text-secondary" />
               {t('dashboardGrowth').replace('%d', '12%')}
             </p>
@@ -82,7 +92,17 @@ const Dashboard = () => {
             <div className="text-2xl font-bold text-foreground number-arabic">
               {isLoading ? "..." : formatCurrency(stats?.totalInstallments, currencySettings?.currency)}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-sm text-muted-foreground space-y-1 mt-2">
+              <div className="flex justify-between">
+                <span>دينار عراقي:</span>
+                <span className="font-medium">{isLoading ? "..." : formatCurrency(stats?.totalInstallmentsIQD, 'IQD')}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>دولار أمريكي:</span>
+                <span className="font-medium">{isLoading ? "..." : formatCurrency(stats?.totalInstallmentsUSD, 'USD')}</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
               <TrendingUp className="inline w-3 h-3 ml-1 text-secondary" />
               {t('dashboardGrowth').replace('%d', '8%')}
             </p>
