@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,12 +19,14 @@ import {
   Clock,
   AlertTriangle,
   Edit,
-  Eye
+  Eye,
+  Trash2
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrencySettings, formatCurrency, getCurrencySymbol } from "@/hooks/use-currency-settings";
+import { t, getCurrentLanguage } from "@/lib/translations";
 
 interface Debt {
   id: string;
@@ -50,6 +52,7 @@ const Debts = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
+  const [deletingDebt, setDeletingDebt] = useState<Debt | null>(null);
   const [editForm, setEditForm] = useState({
     amount: "",
     description: "",
@@ -60,6 +63,7 @@ const Debts = () => {
   });
   const { toast } = useToast();
   const { data: currencySettings } = useCurrencySettings();
+  const language = getCurrentLanguage();
 
   const fetchDebts = useCallback(async () => {
     try {
@@ -125,6 +129,34 @@ const Debts = () => {
       toast({
         title: "خطأ",
         description: "فشل في تحديث الدين",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteDebt = async () => {
+    if (!deletingDebt) return;
+
+    try {
+      const { error } = await supabase
+        .from('debts')
+        .delete()
+        .eq('id', deletingDebt.id);
+
+      if (error) throw error;
+
+      toast({
+        title: t('success', language),
+        description: t('debtDeleted', language),
+      });
+
+      setDeletingDebt(null);
+      fetchDebts();
+    } catch (error) {
+      console.error('Error deleting debt:', error);
+      toast({
+        title: t('error', language),
+        description: "فشل في حذف الدين",
         variant: "destructive",
       });
     }
@@ -385,7 +417,7 @@ const Debts = () => {
                       onClick={() => openEditDialog(debt)}
                     >
                       <Edit className="w-4 h-4 ml-1" />
-                      تحرير
+                      {t('edit', language)}
                     </Button>
                     <Button 
                       size="sm" 
@@ -393,7 +425,15 @@ const Debts = () => {
                       onClick={() => setSelectedDebt(debt)}
                     >
                       <Eye className="w-4 h-4 ml-1" />
-                      عرض التفاصيل
+                      {t('view', language)}
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => setDeletingDebt(debt)}
+                    >
+                      <Trash2 className="w-4 h-4 ml-1" />
+                      {t('delete', language)}
                     </Button>
                   </div>
                 </div>
@@ -494,7 +534,51 @@ const Debts = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Details Dialog */}
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingDebt} onOpenChange={() => setDeletingDebt(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-reverse space-x-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              <span>{t('deleteDebtConfirm', language)}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+              <p className="text-sm text-foreground">
+                {t('deleteDebtMessage', language)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                {t('cannotUndo', language)}
+              </p>
+            </div>
+            {deletingDebt && (
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm font-medium">{deletingDebt.customers?.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatCurrency(deletingDebt.amount, deletingDebt.currency || currencySettings?.currency)}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="flex space-x-reverse space-x-2">
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteDebt}
+              className="btn-destructive"
+            >
+              <Trash2 className="w-4 h-4 ml-2" />
+              {t('delete', language)}
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeletingDebt(null)}
+            >
+              {t('cancel', language)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!selectedDebt} onOpenChange={() => setSelectedDebt(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>

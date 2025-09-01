@@ -20,6 +20,7 @@ export interface Translations {
   add: string;
   edit: string;
   delete: string;
+  view: string;
   save: string;
   cancel: string;
   confirm: string;
@@ -187,6 +188,8 @@ export interface Translations {
   confirmDelete: string;
   confirmDeleteMessage: string;
   cannotUndo: string;
+  deleteDebtConfirm: string;
+  deleteDebtMessage: string;
 }
 
 const arabicTranslations: Translations = {
@@ -208,6 +211,7 @@ const arabicTranslations: Translations = {
   add: 'إضافة',
   edit: 'تعديل',
   delete: 'حذف',
+  view: 'عرض',
   save: 'حفظ',
   cancel: 'إلغاء',
   confirm: 'تأكيد',
@@ -287,6 +291,8 @@ const arabicTranslations: Translations = {
   confirmDelete: 'تأكيد الحذف',
   confirmDeleteMessage: 'هل أنت متأكد من حذف هذا العنصر؟',
   cannotUndo: 'لا يمكن التراجع عن هذا الإجراء',
+  deleteDebtConfirm: 'تأكيد حذف الدين',
+  deleteDebtMessage: 'هل أنت متأكد من حذف هذا الدين؟ سيتم حذف جميع البيانات المتعلقة بهذا الدين نهائياً.',
   noInstallments: 'لا توجد أقساط',
   noSearchResults: 'لم يتم العثور على نتائج للبحث',
   addNewInstallment: 'إضافة قسط جديد',
@@ -404,6 +410,7 @@ const kurdishTranslations: Translations = {
   add: 'زیادکردن',
   edit: 'دەستکاری',
   delete: 'سڕینەوە',
+  view: 'بینین',
   save: 'پاشەکەوتکردن',
   cancel: 'پاشگەزبوونەوە',
   confirm: 'پشتڕاستکردنەوە',
@@ -483,6 +490,8 @@ const kurdishTranslations: Translations = {
   confirmDelete: 'پشتڕاستکردنەوەی سڕینەوە',
   confirmDeleteMessage: 'دڵنیایت لە سڕینەوەی ئەم بڕگەیە؟',
   cannotUndo: 'ناتوانرێت بگەڕێتەوە لەم کردارە',
+  deleteDebtConfirm: 'پشتڕاستکردنەوەی سڕینەوەی قەرز',
+  deleteDebtMessage: 'دڵنیایت لە سڕینەوەی ئەم قەرزە؟ هەموو زانیارییە پەیوەندیدارەکانی ئەم قەرزە بە تەواوی دەسڕدرێتەوە.',
   noInstallments: 'قیستێک نییە',
   noSearchResults: 'هیچ ئەنجامێک نەدۆزرایەوە',
   addNewInstallment: 'زیادکردنی قیستێکی نوێ',
