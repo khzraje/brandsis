@@ -20,7 +20,7 @@ export const useDashboardStats = () => {
       const { data: debtsData, error: debtsError } = await supabase
         .from("debts")
         .select("amount, currency")
-        .eq("status", "active");
+        .neq("status", "cancelled");
 
       if (debtsError) throw debtsError;
 
@@ -32,7 +32,7 @@ export const useDashboardStats = () => {
       const { data: installmentsData, error: installmentsError } = await supabase
         .from("installments")
         .select("remaining_amount, currency")
-        .eq("status", "active");
+        .neq("status", "cancelled");
 
       if (installmentsError) throw installmentsError;
 
@@ -54,7 +54,8 @@ export const useDashboardStats = () => {
         const { data: overdueInstallments, error: overdueError } = await supabase
           .from("installments")
           .select("id")
-          .in("status", ["active", "overdue"])
+          .neq("status", "cancelled")
+          .neq("status", "completed")
           .lt("next_payment_date", currentDate);
 
       if (overdueError) throw overdueError;
