@@ -50,6 +50,7 @@ interface UpcomingInstallment {
   whatsapp_number?: string;
   product_name: string;
   monthly_amount: number;
+  currency?: string;
   next_payment_date: string;
   days_until_due: number;
   status: string;
@@ -180,6 +181,7 @@ const WhatsAppReminders = () => {
           id,
           product_name,
           monthly_amount,
+          currency,
           next_payment_date,
           status,
           customers!inner (
@@ -208,6 +210,7 @@ const WhatsAppReminders = () => {
           whatsapp_number: (customerObj.whatsapp_number ?? customerObj.phone ?? ""),
           product_name: installment.product_name,
           monthly_amount: installment.monthly_amount,
+          currency: installment.currency || "IQD",
           next_payment_date: installment.next_payment_date,
           days_until_due: daysUntilDue,
           status: installment.status,
@@ -227,6 +230,7 @@ const WhatsAppReminders = () => {
         .select(`
           id,
           amount,
+          currency,
           due_date,
           description,
           status,
@@ -267,7 +271,7 @@ const WhatsAppReminders = () => {
           customer_phone: debt.customers.phone || "",
           whatsapp_number: (debt.customers.whatsapp_number ?? debt.customers.phone ?? ""),
           amount: debt.amount,
-          currency: "IQD", // قيمة افتراضية حتى يتم تطبيق migration
+          currency: debt.currency || "IQD",
           due_date: debt.due_date,
           days_overdue: daysOverdue,
           description: debt.description || "",
@@ -350,7 +354,7 @@ const WhatsAppReminders = () => {
         .replace('{customer_name}', installment.customer_name)
         .replace('{product_name}', installment.product_name)
         .replace('{amount}', installment.monthly_amount.toLocaleString())
-        .replace('{currency}', getCurrencySymbol(currencySettings?.currency) || 'د.ع')
+        .replace('{currency}', getCurrencySymbol(installment.currency || currencySettings?.currency) || 'د.ع')
         .replace('{due_date}', format(new Date(installment.next_payment_date), messageLanguage === 'ar' ? "dd/MM/yyyy" : "yyyy/MM/dd"))
         .replace('{days_left}', installment.days_until_due.toString());
 
@@ -384,11 +388,7 @@ const WhatsAppReminders = () => {
         // alternative format
         { obj: { phone: formattedPhone, message: message, sender: settings.whatsapp_sender_number }, headers: { Authorization: `Bearer ${apiKey}` }, useQueryKey: false },
         // simple format
-        { obj: { number: formattedPhone, body: message }, headers: { Authorization: `Bearer ${apiKey}` }, useQueryKey: false },
-        // try without Authorization header but with api_key query param
-        { obj: { phone: formattedPhone, message: message, sender: settings.whatsapp_sender_number }, headers: {}, useQueryKey: true },
-        { obj: { to: formattedPhone, message: message }, headers: {}, useQueryKey: true },
-        { obj: { number: formattedPhone, body: message }, headers: {}, useQueryKey: true }
+        { obj: { number: formattedPhone, body: message }, headers: { Authorization: `Bearer ${apiKey}` }, useQueryKey: false }
       ];
 
       // try candidates in order; if apiUrl not wasenderapi, still attempt first Authorization variant
@@ -420,6 +420,8 @@ const WhatsAppReminders = () => {
           // if a 422 or 429, continue to try next candidate; otherwise rethrow
           if (info.status && (info.status === 422 || info.status === 429)) {
             console.log(`Retrying with different format after ${info.status} error`);
+            // انتظار أطول قبل المحاولة التالية
+            await new Promise(resolve => setTimeout(resolve, 2000));
             continue;
           }
           // for other errors, rethrow immediately
@@ -431,14 +433,14 @@ const WhatsAppReminders = () => {
       if (lastError) {
         const info = asApiError(lastError);
         if (info.status === 429) {
-          throw new Error("تم تجاوز حد الإرسال. يرجى الانتظار 30 ثانية قبل إرسال رسالة أخرى.");
+          throw new Error("تم تجاوز حد الإرسال. يرجى الانتظار دقيقة كاملة قبل إرسال رسالة أخرى.");
         } else if (info.status === 401) {
           throw new Error("مفتاح API غير صحيح أو منتهي الصلاحية. يرجى التحقق من إعدادات API.");
         } else if (info.status === 422) {
           throw new Error("خطأ في تنسيق البيانات. يرجى التحقق من رقم الهاتف والرسالة.");
         } else {
           const bodyText = info.body ? JSON.stringify(info.body) : info.message || String(lastError);
-          throw new Error(bodyText || 'فشل في إرسال الرسالة');
+          throw new Error(`خطأ في الإرسال (${info.status || 'غير معروف'}): ${bodyText}`);
         }
       }
 
@@ -455,9 +457,9 @@ const WhatsAppReminders = () => {
       let errorMessage = error.message;
 
       if (error.message.includes('429')) {
-        errorMessage = "تم تجاوز حد الإرسال. يرجى الانتظار 30 ثانية قبل إرسال رسالة أخرى.";
+        errorMessage = "تم تجاوز حد الإرسال. يرجى الانتظار دقيقة كاملة قبل إرسال رسالة أخرى.";
       } else if (error.message.includes('401')) {
-        errorMessage = "مفتاح API غير صحيح. يرجى التحقق من مفتاح API في إعدادات WhatsApp.";
+        errorMessage = "مفتاح API غير صحيح أو منتهي الصلاحية. يرجى التحقق من إعدادات API.";
       } else if (error.message.includes('422')) {
         errorMessage = "خطأ في تنسيق البيانات. يرجى التحقق من رقم الهاتف والرسالة.";
       } else if (error.message.includes('account protection')) {
@@ -506,9 +508,9 @@ const WhatsAppReminders = () => {
             await sendReminderMutation.mutateAsync({ installment });
             successCount++;
 
-            // انتظار 10 ثواني بين كل رسالة
+            // انتظار 15 ثانية بين كل رسالة لتجنب تجاوز الحدود
             if (i < installmentsWithWhatsApp.length - 1) {
-              await new Promise(resolve => setTimeout(resolve, 10000));
+              await new Promise(resolve => setTimeout(resolve, 15000));
             }
           } catch (error: unknown) {
             errorCount++;
@@ -520,16 +522,17 @@ const WhatsAppReminders = () => {
               throw new Error(`تم إيقاف الإرسال بسبب خطأ في مفتاح API: ${errorMessage}`);
             }
 
-            // انتظار إضافي في حالة خطأ 429
+            // انتظار أطول في حالة خطأ 429
             if (errorMessage.includes('429') || errorMessage.includes('تجاوز حد الإرسال')) {
-              console.log('Rate limit hit, waiting 30 seconds...');
-              await new Promise(resolve => setTimeout(resolve, 30000));
+              console.log('Rate limit hit, waiting 60 seconds...');
+              await new Promise(resolve => setTimeout(resolve, 60000));
               i--; // إعادة المحاولة لنفس الرسالة
               continue;
             }
 
-            // انتظار 5 ثواني في حالة أخطاء أخرى
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            // انتظار أطول في حالة أخطاء أخرى
+            console.log('Other error, waiting 15 seconds...');
+            await new Promise(resolve => setTimeout(resolve, 15000));
           }
         }
 
@@ -635,19 +638,19 @@ const WhatsAppReminders = () => {
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                <strong>حدود الإرسال:</strong> يمكن إرسال رسالة واحدة كل 5 ثواني كحد أقصى
+                <strong>حدود الإرسال:</strong> يمكن إرسال رسالة واحدة كل 10 ثواني كحد أقصى
               </AlertDescription>
             </Alert>
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                <strong>خطأ 401:</strong> يعني مفتاح API غير صحيح أو منتهي الصلاحية
+                <strong>خطأ 401:</strong> مفتاح API منتهي الصلاحية أو غير صحيح
               </AlertDescription>
             </Alert>
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                <strong>خطأ 429:</strong> تجاوز حد الطلبات، انتظر قبل إعادة المحاولة
+                <strong>خطأ 429:</strong> تجاوز حد الطلبات، انتظر دقيقة كاملة
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -698,6 +701,7 @@ const WhatsAppReminders = () => {
                   onChange={(e) => setSettings(prev => ({ ...prev, whatsapp_api_key: e.target.value }))}
                   placeholder="أدخل مفتاح API"
                   className="flex-1"
+                  autoComplete="new-password"
                 />
                 <Button
                   type="button"
@@ -902,7 +906,7 @@ const WhatsAppReminders = () => {
                   .replace('{customer_name}', activeInstallment?.customer_name || target)
                   .replace('{product_name}', '')
                   .replace('{amount}', '0')
-                  .replace('{currency}', getCurrencySymbol(currencySettings?.currency) || '')
+                  .replace('{currency}', getCurrencySymbol(activeInstallment?.currency || currencySettings?.currency) || '')
                   .replace('{due_date}', format(new Date(), messageLanguage === 'ar' ? 'dd/MM/yyyy' : 'yyyy/MM/dd'))
                   .replace('{days_left}', '0');
                 setCustomMessage(defaultMessage);
@@ -987,37 +991,102 @@ const WhatsAppReminders = () => {
 
             <Button
               onClick={() => {
+                const installmentsWithWhatsApp = upcomingInstallments?.filter(inst => inst.whatsapp_number && inst.customer_whatsapp_enabled !== false) || [];
+                if (installmentsWithWhatsApp.length === 0) {
+                  toast({ title: "لا توجد أقساط", description: "لا توجد أقساط مستحقة لها رقم WhatsApp نشط", variant: "destructive" });
+                  return;
+                }
+
+                // إرسال تنبيهات الأقساط مع فترات انتظار
+                (async () => {
+                  for (let i = 0; i < installmentsWithWhatsApp.length; i++) {
+                    const installment = installmentsWithWhatsApp[i];
+                    const message = getTranslation(messageLanguage)['installmentReminderMessage']
+                      .replace('{customer_name}', installment.customer_name)
+                      .replace('{amount}', installment.monthly_amount.toLocaleString())
+                      .replace('{currency}', getCurrencySymbol(installment.currency || currencySettings?.currency))
+                      .replace('{due_date}', format(new Date(installment.next_payment_date), messageLanguage === 'ar' ? "dd/MM/yyyy" : "yyyy/MM/dd"))
+                      .replace('{days_until_due}', installment.days_until_due.toString())
+                      .replace('{product_name}', installment.product_name)
+                      .replace('{installment_number}', installment.installment_number.toString())
+                      .replace('{total_installments}', installment.total_installments.toString());
+
+                    try {
+                      await sendReminderMutation.mutateAsync({
+                        installment: installment,
+                        messageOverride: message
+                      });
+
+                      // انتظار 15 ثانية بين كل رسالة
+                      if (i < installmentsWithWhatsApp.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 15000));
+                      }
+                    } catch (error) {
+                      console.error(`فشل إرسال التنبيه إلى ${installment.customer_name}:`, error);
+                      // استمرار مع الرسالة التالية حتى لو فشلت إحداها
+                    }
+                  }
+
+                  toast({ title: "تم الإرسال", description: `تم إرسال ${installmentsWithWhatsApp.length} تنبيه للأقساط المستحقة` });
+                })();
+              }}
+              className="w-full mt-2"
+              variant="secondary"
+              disabled={!settings.whatsapp_enabled || sendReminderMutation.isPending}
+            >
+              <Send className="w-4 h-4 ml-2" />
+              إرسال تنبيهات الأقساط الفردية
+            </Button>
+
+            <Button
+              onClick={() => {
                 const debtsWithWhatsApp = overdueDebts?.filter(debt => debt.whatsapp_number && debt.customer_whatsapp_enabled !== false) || [];
                 if (debtsWithWhatsApp.length === 0) {
                   toast({ title: "لا توجد ديون", description: "لا توجد ديون متأخرة لها رقم WhatsApp نشط", variant: "destructive" });
                   return;
                 }
-                // إرسال تنبيهات الديون
-                for (const debt of debtsWithWhatsApp) {
-                  const message = getTranslation(messageLanguage)['overdueDebtMessage']
-                    .replace('{customer_name}', debt.customer_name)
-                    .replace('{amount}', debt.amount.toLocaleString())
-                    .replace('{currency}', getCurrencySymbol(debt.currency))
-                    .replace('{due_date}', format(new Date(debt.due_date), messageLanguage === 'ar' ? "dd/MM/yyyy" : "yyyy/MM/dd"))
-                    .replace('{days_overdue}', debt.days_overdue.toString())
-                    .replace('{description}', debt.description ? `📝 ${debt.description}\n\n` : '');
-                  sendReminderMutation.mutateAsync({
-                    installment: {
-                      id: debt.id,
-                      customer_name: debt.customer_name,
-                      customer_phone: debt.customer_phone,
-                      whatsapp_number: debt.whatsapp_number,
-                      product_name: debt.description || 'دين',
-                      monthly_amount: debt.amount,
-                      next_payment_date: debt.due_date,
-                      days_until_due: -debt.days_overdue,
-                      status: 'متأخر',
-                      customer_whatsapp_enabled: debt.customer_whatsapp_enabled
-                    },
-                    messageOverride: message
-                  });
-                }
-                toast({ title: "تم الإرسال", description: `تم إرسال ${debtsWithWhatsApp.length} تنبيه للديون المتأخرة` });
+
+                // إرسال تنبيهات الديون مع فترات انتظار
+                (async () => {
+                  for (let i = 0; i < debtsWithWhatsApp.length; i++) {
+                    const debt = debtsWithWhatsApp[i];
+                    const message = getTranslation(messageLanguage)['overdueDebtMessage']
+                      .replace('{customer_name}', debt.customer_name)
+                      .replace('{amount}', debt.amount.toLocaleString())
+                      .replace('{currency}', getCurrencySymbol(debt.currency || currencySettings?.currency))
+                      .replace('{due_date}', format(new Date(debt.due_date), messageLanguage === 'ar' ? "dd/MM/yyyy" : "yyyy/MM/dd"))
+                      .replace('{days_overdue}', debt.days_overdue.toString())
+                      .replace('{description}', debt.description ? `📝 ${debt.description}\n\n` : '');
+
+                    try {
+                      await sendReminderMutation.mutateAsync({
+                        installment: {
+                          id: debt.id,
+                          customer_name: debt.customer_name,
+                          customer_phone: debt.customer_phone,
+                          whatsapp_number: debt.whatsapp_number,
+                          product_name: debt.description || 'دين',
+                          monthly_amount: debt.amount,
+                          next_payment_date: debt.due_date,
+                          days_until_due: -debt.days_overdue,
+                          status: 'متأخر',
+                          customer_whatsapp_enabled: debt.customer_whatsapp_enabled
+                        },
+                        messageOverride: message
+                      });
+
+                      // انتظار 15 ثانية بين كل رسالة
+                      if (i < debtsWithWhatsApp.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 15000));
+                      }
+                    } catch (error) {
+                      console.error(`فشل إرسال التنبيه إلى ${debt.customer_name}:`, error);
+                      // استمرار مع الرسالة التالية حتى لو فشلت إحداها
+                    }
+                  }
+
+                  toast({ title: "تم الإرسال", description: `تم إرسال ${debtsWithWhatsApp.length} تنبيه للديون المتأخرة` });
+                })();
               }}
               className="w-full mt-2"
               variant="destructive"
@@ -1079,8 +1148,9 @@ const WhatsAppReminders = () => {
               <p>• تأكد من تفعيل العملاء لتلقي الرسائل</p>
               <p>• تحقق من صحة إعدادات API</p>
               <p>• اختبر الإرسال قبل الاستخدام الفعلي</p>
-              <p>• انتظر 30 ثانية بين كل رسالة لتجنب تجاوز الحدود</p>
-              <p>• في حالة خطأ 401، تحقق من مفتاح API</p>
+              <p>• انتظر دقيقة كاملة بين كل رسالة لتجنب تجاوز الحدود</p>
+              <p>• في حالة خطأ 401، تحقق من تجديد مفتاح API</p>
+              <p>• استخدم زر الإيقاف لإلغاء الإرسال الجماعي في أي وقت</p>
             </div>
           </CardContent>
         </Card>
@@ -1135,7 +1205,7 @@ const WhatsAppReminders = () => {
                             const defaultMessage = getTranslation(messageLanguage)['overdueDebtMessage']
                               .replace('{customer_name}', debt.customer_name)
                               .replace('{amount}', debt.amount.toLocaleString())
-                              .replace('{currency}', getCurrencySymbol(debt.currency))
+                              .replace('{currency}', getCurrencySymbol(debt.currency || currencySettings?.currency))
                               .replace('{due_date}', format(new Date(debt.due_date), messageLanguage === 'ar' ? "dd/MM/yyyy" : "yyyy/MM/dd"))
                               .replace('{days_overdue}', debt.days_overdue.toString())
                               .replace('{description}', debt.description ? `📝 ${debt.description}\n\n` : '');
@@ -1177,7 +1247,9 @@ const WhatsAppReminders = () => {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{language === 'ar' ? 'إرسال رسالة فردية' : 'ناردنی نامەی تاکەکەسی'}</DialogTitle>
-          <DialogDescription>{language === 'ar' ? 'عدل الرسالة ثم اضغط إرسال.' : 'نامەکە بگۆڕە و پاشان کلیکی ناردن بکە.'}</DialogDescription>
+          <DialogDescription>
+            {language === 'ar' ? 'عدل الرسالة ثم اضغط إرسال.' : 'نامەکە بگۆڕە و پاشان کلیکی ناردن بکە.'}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="mt-4">
