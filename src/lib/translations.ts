@@ -568,7 +568,7 @@ const kurdishTranslations: Translations = {
   upcomingLabel: 'داهاتوو',
 
   // whatsapp specific
-  overdueDebtMessage: `سڵاو {customer_name}،\n ئەم نامەیە لە سیستەمەوە نێردراوە ، بیرهێنانەوەی پارەدانی ئەو بڕە پارەیەی کە دەبێ بدرێت:\n\n💰 بڕ: {amount} {currency}\n📅 ڕێکەوتی کڕین: {due_date}\n⏰ دواخراو: {days_overdue} ڕۆژ\n\n{description}تکایە سەردانمان بکە.\n\nسوپاس بۆ هاوکاریتان.`,
+  overdueDebtMessage: `سڵاو {customer_name}،\n بە داوای لێ بوردنەوە ئەم نامەیە لە سیستەمەوە نێردراوە ، تەنها بیرهێنانەوەیە کە بڕە پارەیەک ماوە لەسەر بەرێزتان:\n\n💰 بڕ: {amount} {currency}\n📅 ڕێکەوتی کڕین: {due_date}\n⏰ دواخراو: {days_overdue} ڕۆژ\n\n{description}چاوەڕێی سەردانی بەرێزتانین.\n\nسوپاس بۆ هاوکاریتان.`,
   openMessage: 'کردنەوەی نامە',
   templatesLabel: 'قالبە نامەکان',
   applyLabel: 'ئەپلای',
