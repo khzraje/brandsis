@@ -172,6 +172,13 @@ export interface Translations {
 
   // whatsapp specific
   overdueDebtMessage: string;
+  whatsappEnabled: string;
+  whatsappDisabled: string;
+  enableCustomer: string;
+  disableCustomer: string;
+  customerEnabled: string;
+  customerDisabled: string;
+  whatsappStatus: string;
 
   openMessage: string;
   templatesLabel: string;
@@ -379,6 +386,13 @@ const arabicTranslations: Translations = {
 
   // whatsapp specific
   overdueDebtMessage: `مرحباً {customer_name}،\n\nتذكير بدفع الدين المستحق:\n\n💰 المبلغ: {amount} {currency}\n📅 تاريخ الاستحقاق: {due_date}\n⏰ متأخر: {days_overdue} يوم\n\n{description}يرجى تسديد المبلغ في أقرب وقت ممكن.\n\nشكراً لتعاونكم.`,
+  whatsappEnabled: 'نشط لـ WhatsApp',
+  whatsappDisabled: 'معطل لـ WhatsApp',
+  enableCustomer: 'تشغيل العميل',
+  disableCustomer: 'تعطيل العميل',
+  customerEnabled: 'تم تشغيل العميل',
+  customerDisabled: 'تم تعطيل العميل',
+  whatsappStatus: 'حالة WhatsApp',
   openMessage: 'فتح رسالة',
   templatesLabel: 'قوالب الرسائل',
   applyLabel: 'تطبيق',
@@ -577,7 +591,14 @@ const kurdishTranslations: Translations = {
   upcomingLabel: 'داهاتوو',
 
   // whatsapp specific
-  overdueDebtMessage: `سڵاو {customer_name}،\n بە داوای لێ بوردنەوە ئەم نامەیە لە سیستەمەوە نێردراوە ، تەنها بیرهێنانەوەیە کە بڕە پارەیەک ماوە لەسەر بەرێزتان:\n\n💰 بڕ: {amount} {currency}\n📅 ڕێکەوتی کڕین: {due_date}\n⏰ دواخراو: {days_overdue} ڕۆژ\n\n{description}چاوەڕێی سەردانی بەرێزتانین.\n\nسوپاس بۆ هاوکاریتان.`,
+  overdueDebtMessage: `سڵاو بەرێز {customer_name}،\n بە داوای لێ بوردنەوە ئەم نامەیە لە سیستەمەوە نێردراوە ، تەنها بیرهێنانەوەیە کە بڕە پارەیەک ماوە لەسەر بەرێزتان:\n\n💰 بڕ: {amount} {currency}\n📅 ڕێکەوتی کڕین: {due_date}\n⏰ دواخراو: {days_overdue} ڕۆژ\n\n{description}چاوەڕێی سەردانی بەرێزتانین.\n\nسوپاس بۆ هاوکاریتان.`,
+  whatsappEnabled: 'چالاک بۆ WhatsApp',
+  whatsappDisabled: 'ناچالاک بۆ WhatsApp',
+  enableCustomer: 'چالاککردنی کڕیار',
+  disableCustomer: 'ناچالاککردنی کڕیار',
+  customerEnabled: 'کڕیار چالاککرا',
+  customerDisabled: 'کڕیار ناچالاککرا',
+  whatsappStatus: 'دۆخی WhatsApp',
   openMessage: 'کردنەوەی نامە',
   templatesLabel: 'قالبە نامەکان',
   applyLabel: 'ئەپلای',

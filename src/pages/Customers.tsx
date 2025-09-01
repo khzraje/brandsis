@@ -17,7 +17,9 @@ import {
   Mail, 
   MapPin,
   Search,
-  Eye
+  Eye,
+  Ban,
+  CheckCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +33,7 @@ interface Customer {
   national_id?: string;
   notes?: string;
   created_at: string;
+  whatsapp_enabled?: boolean;
 }
 
 const Customers = () => {
@@ -126,28 +129,26 @@ const Customers = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("هل أنت متأكد من حذف هذا العميل؟")) return;
-
+  const handleToggleWhatsApp = async (id: string, currentStatus: boolean) => {
     try {
       const { error } = await supabase
         .from('customers')
-        .delete()
+        .update({ whatsapp_enabled: !currentStatus })
         .eq('id', id);
 
       if (error) throw error;
       
       toast({
         title: "نجح",
-        description: "تم حذف العميل بنجاح",
+        description: !currentStatus ? "تم تشغيل العميل لتلقي رسائل WhatsApp" : "تم تعطيل العميل من تلقي رسائل WhatsApp",
       });
       
       fetchCustomers();
     } catch (error) {
-      console.error('Error deleting customer:', error);
+      console.error('Error toggling WhatsApp status:', error);
       toast({
         title: "خطأ",
-        description: "حدث خطأ في حذف العميل",
+        description: "حدث خطأ في تحديث حالة العميل",
         variant: "destructive",
       });
     }
@@ -340,6 +341,15 @@ const Customers = () => {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => handleToggleWhatsApp(customer.id, customer.whatsapp_enabled ?? true)}
+                    className={customer.whatsapp_enabled ?? true ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
+                    title={customer.whatsapp_enabled ?? true ? "تعطيل العميل من تلقي رسائل WhatsApp" : "تشغيل العميل لتلقي رسائل WhatsApp"}
+                  >
+                    {customer.whatsapp_enabled ?? true ? <Ban className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => openEditDialog(customer)}
                   >
                     <Edit className="h-4 w-4" />
@@ -381,6 +391,11 @@ const Customers = () => {
               )}
               <div className="text-xs text-muted-foreground">
                 تاريخ الإضافة: {format(new Date(customer.created_at), "dd/MM/yyyy")}
+              </div>
+              <div className="flex items-center text-xs">
+                <span className={customer.whatsapp_enabled ?? true ? "text-green-600" : "text-red-600"}>
+                  {customer.whatsapp_enabled ?? true ? "نشط لـ WhatsApp" : "معطل لـ WhatsApp"}
+                </span>
               </div>
             </CardContent>
           </Card>

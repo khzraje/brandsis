@@ -24,7 +24,8 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Phone
+  Phone,
+  X
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getTranslation } from '../lib/translations';
@@ -39,6 +40,7 @@ interface UpcomingDebt {
   due_date: string;
   days_overdue: number;
   description?: string;
+  customer_whatsapp_enabled?: boolean;
 }
 
 interface UpcomingInstallment {
@@ -51,6 +53,7 @@ interface UpcomingInstallment {
   next_payment_date: string;
   days_until_due: number;
   status: string;
+  customer_whatsapp_enabled?: boolean;
 }
 
 interface WhatsAppSettings {
@@ -66,6 +69,7 @@ interface Customer {
   name: string;
   phone?: string;
   whatsapp_number?: string;
+  whatsapp_enabled?: boolean;
 }
 
 const WhatsAppReminders = () => {
@@ -115,7 +119,7 @@ const WhatsAppReminders = () => {
       }
 
       // إذا لم تكن الإعدادات موجودة، أضفها
-      if (!data || data.length === 0) {
+      if (!data || (data as { key: string; value: string }[]).length === 0) {
         console.log('Settings not found, creating default settings...');
         const defaultSettings = [
           { key: 'whatsapp_enabled', value: 'false', description: 'تمكين الواتساب' },
@@ -143,7 +147,7 @@ const WhatsAppReminders = () => {
         data = newData;
       }
 
-      const settingsMap = data?.reduce((acc, setting) => {
+      const settingsMap = (data as { key: string; value: string }[])?.reduce((acc, setting) => {
         acc[setting.key] = setting.value;
         return acc;
       }, {} as Record<string, string>) || {};
@@ -178,14 +182,16 @@ const WhatsAppReminders = () => {
           monthly_amount,
           next_payment_date,
           status,
-          whatsapp_number,
           customers!inner (
             name,
-            phone
+            phone,
+            whatsapp_number,
+            whatsapp_enabled
           )
         `)
         .in("status", ["نشط", "متأخر"])
         .or(`and(status.eq.نشط,next_payment_date.gte.${currentDate.toISOString().split('T')[0]},next_payment_date.lte.${futureDate.toISOString().split('T')[0]}),status.eq.متأخر`)
+        .eq('customers.whatsapp_enabled', true)
         .order("next_payment_date", { ascending: true });
 
       if (error) throw error;
@@ -199,12 +205,13 @@ const WhatsAppReminders = () => {
           id: installment.id,
           customer_name: customerObj.name || "غير محدد",
           customer_phone: customerObj.phone || "",
-          whatsapp_number: (installment.whatsapp_number ?? customerObj.whatsapp_number ?? customerObj.phone ?? ""),
+          whatsapp_number: (customerObj.whatsapp_number ?? customerObj.phone ?? ""),
           product_name: installment.product_name,
           monthly_amount: installment.monthly_amount,
           next_payment_date: installment.next_payment_date,
           days_until_due: daysUntilDue,
-          status: installment.status
+          status: installment.status,
+          customer_whatsapp_enabled: customerObj.whatsapp_enabled
         };
       }) : [];
     },
@@ -220,18 +227,19 @@ const WhatsAppReminders = () => {
         .select(`
           id,
           amount,
-          currency,
           due_date,
           description,
           status,
           customers!inner (
             name,
             phone,
-            whatsapp_number
+            whatsapp_number,
+            whatsapp_enabled
           )
         `)
         .not('due_date', 'is', null)
         .neq("status", "مكتمل")
+        .eq('customers.whatsapp_enabled', true)
         .order("due_date", { ascending: true });
 
       if (error) throw error;
@@ -259,10 +267,11 @@ const WhatsAppReminders = () => {
           customer_phone: debt.customers.phone || "",
           whatsapp_number: (debt.customers.whatsapp_number ?? debt.customers.phone ?? ""),
           amount: debt.amount,
-          currency: debt.currency || "IQD",
+          currency: "IQD", // قيمة افتراضية حتى يتم تطبيق migration
           due_date: debt.due_date,
           days_overdue: daysOverdue,
-          description: debt.description || ""
+          description: debt.description || "",
+          customer_whatsapp_enabled: debt.customers.whatsapp_enabled
         };
       });
     }
@@ -274,7 +283,7 @@ const WhatsAppReminders = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('customers')
-        .select('id, name, phone, whatsapp_number')
+        .select('id, name, phone, whatsapp_number, whatsapp_enabled')
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -422,9 +431,11 @@ const WhatsAppReminders = () => {
       if (lastError) {
         const info = asApiError(lastError);
         if (info.status === 429) {
-          throw new Error("تم تجاوز حد الإرسال. يرجى الانتظار 5 ثواني قبل إرسال رسالة أخرى.");
+          throw new Error("تم تجاوز حد الإرسال. يرجى الانتظار 30 ثانية قبل إرسال رسالة أخرى.");
+        } else if (info.status === 401) {
+          throw new Error("مفتاح API غير صحيح أو منتهي الصلاحية. يرجى التحقق من إعدادات API.");
         } else if (info.status === 422) {
-          throw new Error("خطأ في تنسيق البيانات. يرجى التحقق من إعدادات API.");
+          throw new Error("خطأ في تنسيق البيانات. يرجى التحقق من رقم الهاتف والرسالة.");
         } else {
           const bodyText = info.body ? JSON.stringify(info.body) : info.message || String(lastError);
           throw new Error(bodyText || 'فشل في إرسال الرسالة');
@@ -444,9 +455,11 @@ const WhatsAppReminders = () => {
       let errorMessage = error.message;
 
       if (error.message.includes('429')) {
-        errorMessage = "تم تجاوز حد الإرسال. يرجى الانتظار قبل إرسال رسالة أخرى.";
+        errorMessage = "تم تجاوز حد الإرسال. يرجى الانتظار 30 ثانية قبل إرسال رسالة أخرى.";
+      } else if (error.message.includes('401')) {
+        errorMessage = "مفتاح API غير صحيح. يرجى التحقق من مفتاح API في إعدادات WhatsApp.";
       } else if (error.message.includes('422')) {
-        errorMessage = "خطأ في إعدادات API. يرجى التحقق من صحة البيانات.";
+        errorMessage = "خطأ في تنسيق البيانات. يرجى التحقق من رقم الهاتف والرسالة.";
       } else if (error.message.includes('account protection')) {
         errorMessage = "حماية الحساب مفعلة. يرجى تعطيل حماية الحساب في لوحة تحكم API.";
       }
@@ -460,53 +473,75 @@ const WhatsAppReminders = () => {
   });
 
   // إرسال تنبيهات جماعية
+  const [isBulkSending, setIsBulkSending] = useState(false);
+  const [bulkSendController, setBulkSendController] = useState<AbortController | null>(null);
+
   const sendBulkRemindersMutation = useMutation({
     mutationFn: async () => {
-      const installmentsWithWhatsApp = upcomingInstallments?.filter(inst => inst.customer_phone) || [];
+      const installmentsWithWhatsApp = upcomingInstallments?.filter(inst => inst.whatsapp_number && inst.customer_whatsapp_enabled !== false) || [];
 
       if (installmentsWithWhatsApp.length === 0) {
-        throw new Error("لا توجد أقساط لها رقم هاتف");
+        throw new Error("لا توجد أقساط لها رقم WhatsApp نشط");
       }
+
+      setIsBulkSending(true);
+      const controller = new AbortController();
+      setBulkSendController(controller);
 
       let successCount = 0;
       let errorCount = 0;
       const errors: string[] = [];
 
-      // إرسال التنبيهات واحداً تلو الآخر مع تأخير أكبر
-      for (let i = 0; i < installmentsWithWhatsApp.length; i++) {
-        const installment = installmentsWithWhatsApp[i];
-
-        try {
-          await sendReminderMutation.mutateAsync({ installment });
-          successCount++;
-
-          // انتظار 6 ثواني بين كل رسالة (أكثر من الحد المطلوب 5 ثواني)
-          if (i < installmentsWithWhatsApp.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 6000));
-          }
-        } catch (error: unknown) {
-          errorCount++;
-          const errorMessage = (error as Error)?.message || 'خطأ غير معروف';
-          errors.push(`${installment.customer_name}: ${errorMessage}`);
-
-          // انتظار إضافي في حالة خطأ 429
-          if (errorMessage.includes('429') || errorMessage.includes('تجاوز حد الإرسال')) {
-            console.log('Rate limit hit, waiting 10 seconds...');
-            await new Promise(resolve => setTimeout(resolve, 10000));
-            i--; // إعادة المحاولة لنفس الرسالة
-            continue;
+      try {
+        // إرسال التنبيهات واحداً تلو الآخر مع تأخير أكبر
+        for (let i = 0; i < installmentsWithWhatsApp.length; i++) {
+          // التحقق من إلغاء العملية
+          if (controller.signal.aborted) {
+            throw new Error("تم إلغاء الإرسال الجماعي");
           }
 
-          // انتظار 3 ثواني في حالة أخطاء أخرى
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          const installment = installmentsWithWhatsApp[i];
+
+          try {
+            await sendReminderMutation.mutateAsync({ installment });
+            successCount++;
+
+            // انتظار 10 ثواني بين كل رسالة
+            if (i < installmentsWithWhatsApp.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 10000));
+            }
+          } catch (error: unknown) {
+            errorCount++;
+            const errorMessage = (error as Error)?.message || 'خطأ غير معروف';
+            errors.push(`${installment.customer_name}: ${errorMessage}`);
+
+            // إيقاف الإرسال في حالة خطأ 401
+            if (errorMessage.includes('401') || errorMessage.includes('مفتاح API غير صحيح')) {
+              throw new Error(`تم إيقاف الإرسال بسبب خطأ في مفتاح API: ${errorMessage}`);
+            }
+
+            // انتظار إضافي في حالة خطأ 429
+            if (errorMessage.includes('429') || errorMessage.includes('تجاوز حد الإرسال')) {
+              console.log('Rate limit hit, waiting 30 seconds...');
+              await new Promise(resolve => setTimeout(resolve, 30000));
+              i--; // إعادة المحاولة لنفس الرسالة
+              continue;
+            }
+
+            // انتظار 5 ثواني في حالة أخطاء أخرى
+            await new Promise(resolve => setTimeout(resolve, 5000));
+          }
         }
-      }
 
-      if (errorCount > 0) {
-        throw new Error(`تم إرسال ${successCount} رسالة بنجاح، فشل ${errorCount}: ${errors.join(', ')}`);
-      }
+        if (errorCount > 0) {
+          throw new Error(`تم إرسال ${successCount} رسالة بنجاح، فشل ${errorCount}: ${errors.join(', ')}`);
+        }
 
-      return successCount;
+        return successCount;
+      } finally {
+        setIsBulkSending(false);
+        setBulkSendController(null);
+      }
     },
     onSuccess: (count) => {
       toast({
@@ -588,6 +623,35 @@ const WhatsAppReminders = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* تنبيهات مهمة */}
+        <Card className="card-elegant border-warning">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-reverse space-x-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              <span>تنبيهات مهمة</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>حدود الإرسال:</strong> يمكن إرسال رسالة واحدة كل 5 ثواني كحد أقصى
+              </AlertDescription>
+            </Alert>
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>خطأ 401:</strong> يعني مفتاح API غير صحيح أو منتهي الصلاحية
+              </AlertDescription>
+            </Alert>
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>خطأ 429:</strong> تجاوز حد الطلبات، انتظر قبل إعادة المحاولة
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
         {/* إعدادات WhatsApp */}
         <Card className="card-elegant">
           <CardHeader>
@@ -626,13 +690,25 @@ const WhatsAppReminders = () => {
 
             <div>
               <Label htmlFor="api-key">مفتاح API</Label>
-              <Input
-                id="api-key"
-                type="password"
-                value={settings.whatsapp_api_key}
-                onChange={(e) => setSettings(prev => ({ ...prev, whatsapp_api_key: e.target.value }))}
-                placeholder="أدخل مفتاح API"
-              />
+              <div className="flex space-x-reverse space-x-2">
+                <Input
+                  id="api-key"
+                  type="password"
+                  value={settings.whatsapp_api_key}
+                  onChange={(e) => setSettings(prev => ({ ...prev, whatsapp_api_key: e.target.value }))}
+                  placeholder="أدخل مفتاح API"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSettings(prev => ({ ...prev, whatsapp_api_key: '' }))}
+                  title="مسح مفتاح API"
+                >
+                  🗑️
+                </Button>
+              </div>
             </div>
 
             <div>
@@ -677,6 +753,57 @@ const WhatsAppReminders = () => {
             >
               {updateSettingsMutation.isPending ? "جاري الحفظ..." : "حفظ الإعدادات"}
             </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={async () => {
+                if (!settings.whatsapp_api_url || !settings.whatsapp_api_key) {
+                  toast({
+                    title: "خطأ",
+                    description: "يرجى إكمال إعدادات API أولاً",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+
+                try {
+                  // اختبار الاتصال بإرسال طلب بسيط
+                  const testResponse = await fetch(`${settings.whatsapp_api_url}?api_key=${encodeURIComponent(settings.whatsapp_api_key)}`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                  });
+
+                  if (testResponse.ok) {
+                    toast({
+                      title: "نجح الاختبار",
+                      description: "الاتصال بـ API يعمل بشكل صحيح",
+                    });
+                  } else if (testResponse.status === 401) {
+                    toast({
+                      title: "خطأ في API",
+                      description: "مفتاح API غير صحيح",
+                      variant: "destructive"
+                    });
+                  } else {
+                    toast({
+                      title: "خطأ في API",
+                      description: `خطأ ${testResponse.status}: ${testResponse.statusText}`,
+                      variant: "destructive"
+                    });
+                  }
+                } catch (error) {
+                  toast({
+                    title: "خطأ في الاتصال",
+                    description: "فشل في الاتصال بـ API",
+                    variant: "destructive"
+                  });
+                }
+              }}
+            >
+              اختبار الاتصال بـ API
+            </Button>
           </CardContent>
         </Card>
 
@@ -698,7 +825,10 @@ const WhatsAppReminders = () => {
               >
                 <option value="">-- {t('search')} --</option>
                 {customersList?.map((c: Customer) => (
-                  <option key={c.id} value={c.id}>{c.name} — {c.whatsapp_number || c.phone || 'بدون رقم'}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name} — {c.whatsapp_number || c.phone || 'بدون رقم'} 
+                    {c.whatsapp_enabled === false && ' (معطل)'}
+                  </option>
                 ))}
               </select>
               <p className="text-sm text-muted-foreground mt-1">{t('customersLoaded').replace('{count}', String(customersList?.length || 0))}</p>
@@ -727,7 +857,8 @@ const WhatsAppReminders = () => {
                     monthly_amount: 0,
                     next_payment_date: new Date().toISOString(),
                     days_until_due: 0,
-                    status: ''
+                    status: '',
+                    customer_whatsapp_enabled: cust.whatsapp_enabled
                   };
                   setActiveInstallment(temp);
                   target = cust?.whatsapp_number || cust?.phone; // استخدام whatsapp_number أو رقم الهاتف
@@ -742,7 +873,8 @@ const WhatsAppReminders = () => {
                     monthly_amount: 0,
                     next_payment_date: new Date().toISOString(),
                     days_until_due: 0,
-                    status: ''
+                    status: '',
+                    customer_whatsapp_enabled: true // الإرسال اليدوي يُعتبر نشط دائماً
                   };
                   setActiveInstallment(temp);
                   target = manualRecipient;
@@ -751,6 +883,19 @@ const WhatsAppReminders = () => {
                 if (!target) {
                   toast({ title: t('error'), description: t('invalidPhone'), variant: 'destructive' });
                   return;
+                }
+
+                // التحقق من حالة العميل إذا تم اختياره من القائمة
+                if (selectedCustomerId) {
+                  const selectedCustomer = customersList?.find((c: Customer) => c.id === selectedCustomerId);
+                  if (selectedCustomer && selectedCustomer.whatsapp_enabled === false) {
+                    toast({ 
+                      title: t('warning'), 
+                      description: 'هذا العميل معطل من تلقي رسائل WhatsApp', 
+                      variant: 'destructive' 
+                    });
+                    return;
+                  }
                 }
 
                 const defaultMessage = getTranslation(messageLanguage)['whatsappReminderMessage']
@@ -788,9 +933,9 @@ const WhatsAppReminders = () => {
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">لها رقم WhatsApp:</span>
+              <span className="text-muted-foreground">لها رقم WhatsApp نشط:</span>
               <Badge variant="secondary">
-                {upcomingInstallments?.filter(inst => inst.whatsapp_number).length || 0}
+                {upcomingInstallments?.filter(inst => inst.whatsapp_number && inst.customer_whatsapp_enabled !== false).length || 0}
               </Badge>
             </div>
 
@@ -813,17 +958,38 @@ const WhatsAppReminders = () => {
             <Button
               onClick={() => sendBulkRemindersMutation.mutate()}
               className="w-full"
-              disabled={!settings.whatsapp_enabled || sendBulkRemindersMutation.isPending}
+              disabled={!settings.whatsapp_enabled || sendBulkRemindersMutation.isPending || isBulkSending}
             >
               <Send className="w-4 h-4 ml-2" />
-              {sendBulkRemindersMutation.isPending ? "جاري الإرسال..." : "إرسال تنبيهات جماعية"}
+              {sendBulkRemindersMutation.isPending || isBulkSending ? "جاري الإرسال..." : "إرسال تنبيهات جماعية"}
             </Button>
+
+            {isBulkSending && (
+              <Button
+                onClick={() => {
+                  if (bulkSendController) {
+                    bulkSendController.abort();
+                    setIsBulkSending(false);
+                    setBulkSendController(null);
+                    toast({
+                      title: "تم الإلغاء",
+                      description: "تم إلغاء الإرسال الجماعي",
+                    });
+                  }
+                }}
+                variant="destructive"
+                className="w-full"
+              >
+                <X className="w-4 h-4 ml-2" />
+                إيقاف الإرسال الجماعي
+              </Button>
+            )}
 
             <Button
               onClick={() => {
-                const debtsWithWhatsApp = overdueDebts?.filter(debt => debt.whatsapp_number) || [];
+                const debtsWithWhatsApp = overdueDebts?.filter(debt => debt.whatsapp_number && debt.customer_whatsapp_enabled !== false) || [];
                 if (debtsWithWhatsApp.length === 0) {
-                  toast({ title: "لا توجد ديون", description: "لا توجد ديون متأخرة لها رقم WhatsApp", variant: "destructive" });
+                  toast({ title: "لا توجد ديون", description: "لا توجد ديون متأخرة لها رقم WhatsApp نشط", variant: "destructive" });
                   return;
                 }
                 // إرسال تنبيهات الديون
@@ -845,7 +1011,8 @@ const WhatsAppReminders = () => {
                       monthly_amount: debt.amount,
                       next_payment_date: debt.due_date,
                       days_until_due: -debt.days_overdue,
-                      status: 'متأخر'
+                      status: 'متأخر',
+                      customer_whatsapp_enabled: debt.customer_whatsapp_enabled
                     },
                     messageOverride: message
                   });
@@ -889,19 +1056,31 @@ const WhatsAppReminders = () => {
               </Alert>
             )}
 
-            {upcomingInstallments?.filter(inst => !inst.whatsapp_number).length > 0 && (
+            {settings.whatsapp_enabled && settings.whatsapp_api_key && settings.whatsapp_api_key.length < 20 && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  مفتاح API يبدو غير صحيح. يرجى التحقق من مفتاح API الصحيح.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {upcomingInstallments?.filter(inst => !inst.whatsapp_number || inst.customer_whatsapp_enabled === false).length > 0 && (
               <Alert>
                 <Phone className="h-4 w-4" />
                 <AlertDescription>
-                  {upcomingInstallments.filter(inst => !inst.whatsapp_number).length} عميل بدون رقم WhatsApp
+                  {upcomingInstallments.filter(inst => !inst.whatsapp_number || inst.customer_whatsapp_enabled === false).length} عميل بدون رقم WhatsApp نشط
                 </AlertDescription>
               </Alert>
             )}
 
             <div className="text-sm text-muted-foreground">
               <p>• تأكد من إضافة أرقام WhatsApp للعملاء</p>
+              <p>• تأكد من تفعيل العملاء لتلقي الرسائل</p>
               <p>• تحقق من صحة إعدادات API</p>
               <p>• اختبر الإرسال قبل الاستخدام الفعلي</p>
+              <p>• انتظر 30 ثانية بين كل رسالة لتجنب تجاوز الحدود</p>
+              <p>• في حالة خطأ 401، تحقق من مفتاح API</p>
             </div>
           </CardContent>
         </Card>
@@ -948,7 +1127,7 @@ const WhatsAppReminders = () => {
                     </div>
 
                     <div className="flex items-center space-x-reverse space-x-2">
-                      {debt.whatsapp_number ? (
+                      {debt.whatsapp_number && debt.customer_whatsapp_enabled !== false ? (
                         <Button
                           size="sm"
                           variant="destructive"
@@ -969,7 +1148,8 @@ const WhatsAppReminders = () => {
                               monthly_amount: debt.amount,
                               next_payment_date: debt.due_date,
                               days_until_due: -debt.days_overdue,
-                              status: 'متأخر'
+                              status: 'متأخر',
+                              customer_whatsapp_enabled: debt.customer_whatsapp_enabled
                             });
                             setCustomMessage(defaultMessage);
                             setDialogOpen(true);
@@ -980,7 +1160,7 @@ const WhatsAppReminders = () => {
                         </Button>
                       ) : (
                         <Badge variant="outline" className="text-xs">
-                          بدون رقم
+                          {debt.customer_whatsapp_enabled === false ? 'معطل' : 'بدون رقم'}
                         </Badge>
                       )}
                     </div>
