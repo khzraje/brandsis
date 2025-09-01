@@ -69,6 +69,8 @@ export const getCurrencySymbol = (currency: string): string => {
       return "د.ع";
     case "USD":
       return "$";
+    case "EUR":
+      return "€";
     default:
       return "د.ع";
   }
@@ -95,16 +97,25 @@ export const formatCurrency = (amount: number | undefined | null, currency: stri
   const validCurrency = currency || "IQD";
   const symbol = getCurrencySymbol(validCurrency);
 
+  // تنسيق موحد لجميع العملات - بدون أرقام عشرية إلا إذا كانت مطلوبة
+  const isInteger = amount % 1 === 0; // التحقق من أن الرقم صحيح
+
   if (validCurrency === "IQD") {
-    // تنسيق خاص للدينار العراقي - بدون أرقام عشرية
-    const integerAmount = Math.round(amount); // إزالة الأرقام العشرية
+    // تنسيق خاص للدينار العراقي
+    const integerAmount = Math.round(amount);
     const formattedAmount = integerAmount.toLocaleString('ar-IQ', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     });
     return `${formattedAmount} ${symbol}`;
   } else {
-    // تنسيق للدولار
-    return `${symbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    // تنسيق للعملات الأخرى - بدون أرقام عشرية إلا إذا كانت مطلوبة
+    if (isInteger) {
+      // إذا كان الرقم صحيحاً، لا نعرض الأرقام العشرية
+      return `${symbol}${Math.round(amount).toLocaleString('en-US')}`;
+    } else {
+      // إذا كان الرقم عشرياً، نعرض رقمين عشريين كحد أقصى
+      return `${symbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    }
   }
 };

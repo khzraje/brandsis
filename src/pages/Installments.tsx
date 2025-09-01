@@ -46,6 +46,7 @@ interface Installment {
   next_payment_date?: string;
   notes?: string;
   status: string;
+  currency?: string;
   created_at: string;
   customers?: {
     id: string;
@@ -68,7 +69,8 @@ const Installments = () => {
     monthly_amount: "",
     months_count: "",
     notes: "",
-    status: ""
+    status: "",
+    currency: "IQD"
   });
   const [paymentForm, setPaymentForm] = useState({
     payment_amount: "",
@@ -164,7 +166,8 @@ const Installments = () => {
           monthly_amount: parseFloat(editForm.monthly_amount),
           months_count: parseInt(editForm.months_count),
           notes: editForm.notes,
-          status: editForm.status
+          status: editForm.status,
+          currency: editForm.currency
         })
         .eq('id', editingInstallment.id);
 
@@ -307,7 +310,8 @@ const Installments = () => {
       monthly_amount: installment.monthly_amount.toString(),
       months_count: installment.months_count.toString(),
       notes: installment.notes || "",
-      status: installment.status
+      status: installment.status,
+      currency: installment.currency || "IQD"
     });
   };
 
@@ -524,13 +528,13 @@ const Installments = () => {
                       <div>
                         <p className="text-xs text-muted-foreground">إجمالي المبلغ</p>
                         <p className="text-lg font-bold text-primary number-arabic">
-                          {formatCurrency(installment.total_amount, currencySettings?.currency)}
+                          {formatCurrency(installment.total_amount, installment.currency || currencySettings?.currency)}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">القسط الشهري</p>
                         <p className="text-lg font-bold text-accent number-arabic">
-                          {formatCurrency(installment.monthly_amount, currencySettings?.currency)}
+                          {formatCurrency(installment.monthly_amount, installment.currency || currencySettings?.currency)}
                         </p>
                       </div>
                     </div>
@@ -545,7 +549,7 @@ const Installments = () => {
                     </div>
                     <Progress value={progress} className="h-2" />
                     <p className="text-xs text-muted-foreground mt-1">
-                      المبلغ المتبقي: {formatCurrency(installment.remaining_amount, currencySettings?.currency)}
+                      المبلغ المتبقي: {formatCurrency(installment.remaining_amount, installment.currency || currencySettings?.currency)}
                     </p>
                   </div>
 
@@ -687,6 +691,22 @@ const Installments = () => {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="edit-currency">العملة</Label>
+              <Select
+                value={editForm.currency}
+                onValueChange={(value) => setEditForm(prev => ({...prev, currency: value}))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="IQD">دينار عراقي (د.ع)</SelectItem>
+                  <SelectItem value="USD">دولار أمريكي ($)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="edit-notes">ملاحظات</Label>
               <Textarea
                 id="edit-notes"
@@ -721,7 +741,7 @@ const Installments = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="payment-amount">مبلغ الدفعة ({getCurrencySymbol(currencySettings?.currency)})</Label>
+              <Label htmlFor="payment-amount">مبلغ الدفعة ({getCurrencySymbol(paymentDialog?.currency || currencySettings?.currency)})</Label>
               <Input
                 id="payment-amount"
                 type="number"
@@ -731,7 +751,10 @@ const Installments = () => {
                 className="number-arabic"
               />
               <p className="text-xs text-muted-foreground">
-                القسط المطلوب: {formatCurrency(paymentDialog?.monthly_amount, currencySettings?.currency)}
+                القسط المطلوب: {formatCurrency(paymentDialog?.monthly_amount, paymentDialog?.currency || currencySettings?.currency)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                المبلغ المدفوع: {formatCurrency(paymentDialog?.paid_amount, paymentDialog?.currency || currencySettings?.currency)}
               </p>
             </div>
 
@@ -790,7 +813,7 @@ const Installments = () => {
                 <div className="space-y-2 text-sm">
                   <p><strong>العميل:</strong> {deleteDialog.customers?.name}</p>
                   <p><strong>المنتج:</strong> {deleteDialog.product_name}</p>
-                  <p><strong>المبلغ المتبقي:</strong> {formatCurrency(deleteDialog.remaining_amount, currencySettings?.currency)}</p>
+                  <p><strong>المبلغ المتبقي:</strong> {formatCurrency(deleteDialog.remaining_amount, deleteDialog.currency || currencySettings?.currency)}</p>
                   <p><strong>الأقساط المدفوعة:</strong> {deleteDialog.paid_months} / {deleteDialog.months_count}</p>
                 </div>
               )}

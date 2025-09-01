@@ -27,6 +27,19 @@ import {
   Phone
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getTranslation } from '../lib/translations';
+
+interface UpcomingDebt {
+  id: string;
+  customer_name: string;
+  customer_phone?: string;
+  whatsapp_number?: string;
+  amount: number;
+  currency?: string;
+  due_date: string;
+  days_overdue: number;
+  description?: string;
+}
 
 interface UpcomingInstallment {
   id: string;
@@ -66,6 +79,7 @@ const WhatsAppReminders = () => {
     whatsapp_sender_number: "",
     whatsapp_reminder_days: 3
   });
+  const [messageLanguage, setMessageLanguage] = useState<'ar' | 'ku'>('ar');
 
   const { data: currencySettings } = useCurrencySettings();
   const { toast } = useToast();
@@ -197,6 +211,63 @@ const WhatsAppReminders = () => {
     enabled: !!settings.whatsapp_reminder_days
   });
 
+  // جلب الديون المتأخرة
+  const { data: overdueDebts, isLoading: debtsLoading } = useQuery({
+    queryKey: ["overdue-debts-whatsapp"],
+    queryFn: async (): Promise<UpcomingDebt[]> => {
+      const { data, error } = await supabase
+        .from("debts")
+        .select(`
+          id,
+          amount,
+          currency,
+          due_date,
+          description,
+          status,
+          customers!inner (
+            name,
+            phone,
+            whatsapp_number
+          )
+        `)
+        .not('due_date', 'is', null)
+        .neq("status", "مكتمل")
+        .order("due_date", { ascending: true });
+
+      if (error) throw error;
+
+      // تصفية الديون المتأخرة بناءً على تاريخ الاستحقاق الفعلي
+      const currentDate = new Date();
+      currentDate.setHours(0, 0, 0, 0); // إزالة الوقت للمقارنة الصحيحة
+
+      const filteredOverdueDebts = Array.isArray(data) ? data.filter(debt => {
+        if (!debt.due_date) return false;
+        const dueDate = new Date(debt.due_date);
+        dueDate.setHours(0, 0, 0, 0);
+        return dueDate < currentDate;
+      }) : [];
+
+      return filteredOverdueDebts.map(debt => {
+        const dueDate = new Date(debt.due_date);
+        const today = new Date();
+        const diffTime = today.getTime() - dueDate.getTime();
+        const daysOverdue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        return {
+          id: debt.id,
+          customer_name: debt.customers.name || "غير محدد",
+          customer_phone: debt.customers.phone || "",
+          whatsapp_number: (debt.customers.whatsapp_number ?? debt.customers.phone ?? ""),
+          amount: debt.amount,
+          currency: debt.currency || "IQD",
+          due_date: debt.due_date,
+          days_overdue: daysOverdue,
+          description: debt.description || ""
+        };
+      });
+    }
+  });
+
   // جلب قائمة العملاء (لكي تظهر في قائمة الإرسال الفردي)
   const { data: customersList } = useQuery<Customer[]>({
     queryKey: ["customers-list"],
@@ -260,12 +331,18 @@ const WhatsAppReminders = () => {
       const to = installment.whatsapp_number || installment.customer_phone;
       if (!to) throw new Error("لا يوجد رقم مستلم لإرسال الرسالة");
 
-      const defaultMessage = t('whatsappReminderMessage')
+      // تنظيف رقم الهاتف
+      const cleanPhoneNumber = to.replace(/\D/g, '');
+      const formattedPhone = cleanPhoneNumber.startsWith('964') ? cleanPhoneNumber : 
+                           cleanPhoneNumber.startsWith('0') ? '964' + cleanPhoneNumber.substring(1) : 
+                           '964' + cleanPhoneNumber;
+
+      const defaultMessage = getTranslation(messageLanguage)['whatsappReminderMessage']
         .replace('{customer_name}', installment.customer_name)
         .replace('{product_name}', installment.product_name)
         .replace('{amount}', installment.monthly_amount.toLocaleString())
         .replace('{currency}', getCurrencySymbol(currencySettings?.currency) || 'د.ع')
-        .replace('{due_date}', format(new Date(installment.next_payment_date), language === 'ar' ? "dd/MM/yyyy" : "yyyy/MM/dd"))
+        .replace('{due_date}', format(new Date(installment.next_payment_date), messageLanguage === 'ar' ? "dd/MM/yyyy" : "yyyy/MM/dd"))
         .replace('{days_left}', installment.days_until_due.toString());
 
       const message = messageOverride ?? defaultMessage;
@@ -294,15 +371,15 @@ const WhatsAppReminders = () => {
       // candidate payload shapes to try for wasenderapi
       const candidates = [
         // wasenderapi expects { to, text } with Authorization Bearer
-        { obj: { to, text: message }, headers: { Authorization: `Bearer ${apiKey}` }, useQueryKey: false },
-        // common alternatives
-        { obj: { to, message, sender: settings.whatsapp_sender_number }, headers: { Authorization: `Bearer ${apiKey}` }, useQueryKey: false },
-        { obj: { phone: to, message, sender: settings.whatsapp_sender_number }, headers: { Authorization: `Bearer ${apiKey}` }, useQueryKey: false },
-        { obj: { number: to, body: message }, headers: { Authorization: `Bearer ${apiKey}` }, useQueryKey: false },
+        { obj: { to: formattedPhone, text: message }, headers: { Authorization: `Bearer ${apiKey}` }, useQueryKey: false },
+        // alternative format
+        { obj: { phone: formattedPhone, message: message, sender: settings.whatsapp_sender_number }, headers: { Authorization: `Bearer ${apiKey}` }, useQueryKey: false },
+        // simple format
+        { obj: { number: formattedPhone, body: message }, headers: { Authorization: `Bearer ${apiKey}` }, useQueryKey: false },
         // try without Authorization header but with api_key query param
-        { obj: { phone: to, message, sender: settings.whatsapp_sender_number }, headers: {}, useQueryKey: true },
-        { obj: { to, message }, headers: {}, useQueryKey: true },
-        { obj: { number: to, body: message }, headers: {}, useQueryKey: true }
+        { obj: { phone: formattedPhone, message: message, sender: settings.whatsapp_sender_number }, headers: {}, useQueryKey: true },
+        { obj: { to: formattedPhone, message: message }, headers: {}, useQueryKey: true },
+        { obj: { number: formattedPhone, body: message }, headers: {}, useQueryKey: true }
       ];
 
       // try candidates in order; if apiUrl not wasenderapi, still attempt first Authorization variant
@@ -331,19 +408,27 @@ const WhatsAppReminders = () => {
         } catch (err) {
           lastError = err;
           const info = asApiError(err);
-          // if a 422, continue to try next candidate; otherwise rethrow
-          if (info.status && info.status !== 422) {
-            throw err;
+          // if a 422 or 429, continue to try next candidate; otherwise rethrow
+          if (info.status && (info.status === 422 || info.status === 429)) {
+            console.log(`Retrying with different format after ${info.status} error`);
+            continue;
           }
-          // otherwise continue loop to try next payload shape
+          // for other errors, rethrow immediately
+          throw err;
         }
       }
 
       // all attempts failed
       if (lastError) {
         const info = asApiError(lastError);
-        const bodyText = info.body ? JSON.stringify(info.body) : info.message || String(lastError);
-        throw new Error(bodyText || 'فشل في إرسال الرسالة');
+        if (info.status === 429) {
+          throw new Error("تم تجاوز حد الإرسال. يرجى الانتظار 5 ثواني قبل إرسال رسالة أخرى.");
+        } else if (info.status === 422) {
+          throw new Error("خطأ في تنسيق البيانات. يرجى التحقق من إعدادات API.");
+        } else {
+          const bodyText = info.body ? JSON.stringify(info.body) : info.message || String(lastError);
+          throw new Error(bodyText || 'فشل في إرسال الرسالة');
+        }
       }
 
       return installment;
@@ -355,9 +440,20 @@ const WhatsAppReminders = () => {
       });
     },
     onError: (error) => {
+      console.error('WhatsApp send error:', error);
+      let errorMessage = error.message;
+
+      if (error.message.includes('429')) {
+        errorMessage = "تم تجاوز حد الإرسال. يرجى الانتظار قبل إرسال رسالة أخرى.";
+      } else if (error.message.includes('422')) {
+        errorMessage = "خطأ في إعدادات API. يرجى التحقق من صحة البيانات.";
+      } else if (error.message.includes('account protection')) {
+        errorMessage = "حماية الحساب مفعلة. يرجى تعطيل حماية الحساب في لوحة تحكم API.";
+      }
+
       toast({
         title: "خطأ في الإرسال",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -372,14 +468,45 @@ const WhatsAppReminders = () => {
         throw new Error("لا توجد أقساط لها رقم هاتف");
       }
 
-      // إرسال التنبيهات واحداً تلو الآخر
-      for (const installment of installmentsWithWhatsApp) {
-        await sendReminderMutation.mutateAsync({ installment });
-        // انتظار قليل بين كل رسالة
-        await new Promise(resolve => setTimeout(resolve, 500));
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      // إرسال التنبيهات واحداً تلو الآخر مع تأخير أكبر
+      for (let i = 0; i < installmentsWithWhatsApp.length; i++) {
+        const installment = installmentsWithWhatsApp[i];
+
+        try {
+          await sendReminderMutation.mutateAsync({ installment });
+          successCount++;
+
+          // انتظار 6 ثواني بين كل رسالة (أكثر من الحد المطلوب 5 ثواني)
+          if (i < installmentsWithWhatsApp.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 6000));
+          }
+        } catch (error: unknown) {
+          errorCount++;
+          const errorMessage = (error as Error)?.message || 'خطأ غير معروف';
+          errors.push(`${installment.customer_name}: ${errorMessage}`);
+
+          // انتظار إضافي في حالة خطأ 429
+          if (errorMessage.includes('429') || errorMessage.includes('تجاوز حد الإرسال')) {
+            console.log('Rate limit hit, waiting 10 seconds...');
+            await new Promise(resolve => setTimeout(resolve, 10000));
+            i--; // إعادة المحاولة لنفس الرسالة
+            continue;
+          }
+
+          // انتظار 3 ثواني في حالة أخطاء أخرى
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
       }
 
-      return installmentsWithWhatsApp.length;
+      if (errorCount > 0) {
+        throw new Error(`تم إرسال ${successCount} رسالة بنجاح، فشل ${errorCount}: ${errors.join(', ')}`);
+      }
+
+      return successCount;
     },
     onSuccess: (count) => {
       toast({
@@ -388,6 +515,7 @@ const WhatsAppReminders = () => {
       });
     },
     onError: (error) => {
+      console.error('Bulk send error:', error);
       toast({
         title: "خطأ في الإرسال الجماعي",
         description: error.message,
@@ -411,10 +539,22 @@ const WhatsAppReminders = () => {
         setSettings(whatsappSettings);
       }
     }
-  }, [whatsappSettings]);
+  }, [whatsappSettings, updateSettingsMutation]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('whatsapp_message_language');
+    if (saved === 'ar' || saved === 'ku') {
+      setMessageLanguage(saved);
+    }
+  }, []);
 
   const handleSaveSettings = () => {
     updateSettingsMutation.mutate(settings);
+  };
+
+  const handleMessageLanguageChange = (lang: 'ar' | 'ku') => {
+    setMessageLanguage(lang);
+    localStorage.setItem('whatsapp_message_language', lang);
   };
 
   // اختيار يدوي لإرسال رسالة فردية
@@ -517,6 +657,19 @@ const WhatsAppReminders = () => {
               />
             </div>
 
+            <div>
+              <Label htmlFor="message-language">لغة الرسالة</Label>
+              <select
+                id="message-language"
+                value={messageLanguage}
+                onChange={(e) => handleMessageLanguageChange(e.target.value as 'ar' | 'ku')}
+                className="w-full rounded-md border px-2 py-1"
+              >
+                <option value="ar">العربية</option>
+                <option value="ku">کوردیی سۆرانی</option>
+              </select>
+            </div>
+
             <Button
               onClick={handleSaveSettings}
               className="w-full btn-primary"
@@ -549,7 +702,6 @@ const WhatsAppReminders = () => {
                 ))}
               </select>
               <p className="text-sm text-muted-foreground mt-1">{t('customersLoaded').replace('{count}', String(customersList?.length || 0))}</p>
-              {typeof window !== 'undefined' && console.log('customersList', customersList)}
             </div>
 
             {/* قوالب الرسائل أزيلت من واجهة الإرسال الفردي */}
@@ -601,12 +753,12 @@ const WhatsAppReminders = () => {
                   return;
                 }
 
-                const defaultMessage = t('whatsappReminderMessage')
+                const defaultMessage = getTranslation(messageLanguage)['whatsappReminderMessage']
                   .replace('{customer_name}', activeInstallment?.customer_name || target)
                   .replace('{product_name}', '')
                   .replace('{amount}', '0')
                   .replace('{currency}', getCurrencySymbol(currencySettings?.currency) || '')
-                  .replace('{due_date}', format(new Date(), 'dd/MM/yyyy'))
+                  .replace('{due_date}', format(new Date(), messageLanguage === 'ar' ? 'dd/MM/yyyy' : 'yyyy/MM/dd'))
                   .replace('{days_left}', '0');
                 setCustomMessage(defaultMessage);
                 setDialogOpen(true);
@@ -650,9 +802,9 @@ const WhatsAppReminders = () => {
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">مستحقة غداً:</span>
-              <Badge variant="warning">
-                {upcomingInstallments?.filter(inst => inst.days_until_due === 2).length || 0}
+              <span className="text-muted-foreground">إجمالي الديون المتأخرة:</span>
+              <Badge variant="destructive">
+                {overdueDebts?.length || 0}
               </Badge>
             </div>
 
@@ -665,6 +817,47 @@ const WhatsAppReminders = () => {
             >
               <Send className="w-4 h-4 ml-2" />
               {sendBulkRemindersMutation.isPending ? "جاري الإرسال..." : "إرسال تنبيهات جماعية"}
+            </Button>
+
+            <Button
+              onClick={() => {
+                const debtsWithWhatsApp = overdueDebts?.filter(debt => debt.whatsapp_number) || [];
+                if (debtsWithWhatsApp.length === 0) {
+                  toast({ title: "لا توجد ديون", description: "لا توجد ديون متأخرة لها رقم WhatsApp", variant: "destructive" });
+                  return;
+                }
+                // إرسال تنبيهات الديون
+                for (const debt of debtsWithWhatsApp) {
+                  const message = getTranslation(messageLanguage)['overdueDebtMessage']
+                    .replace('{customer_name}', debt.customer_name)
+                    .replace('{amount}', debt.amount.toLocaleString())
+                    .replace('{currency}', getCurrencySymbol(debt.currency))
+                    .replace('{due_date}', format(new Date(debt.due_date), messageLanguage === 'ar' ? "dd/MM/yyyy" : "yyyy/MM/dd"))
+                    .replace('{days_overdue}', debt.days_overdue.toString())
+                    .replace('{description}', debt.description ? `📝 ${debt.description}\n\n` : '');
+                  sendReminderMutation.mutateAsync({
+                    installment: {
+                      id: debt.id,
+                      customer_name: debt.customer_name,
+                      customer_phone: debt.customer_phone,
+                      whatsapp_number: debt.whatsapp_number,
+                      product_name: debt.description || 'دين',
+                      monthly_amount: debt.amount,
+                      next_payment_date: debt.due_date,
+                      days_until_due: -debt.days_overdue,
+                      status: 'متأخر'
+                    },
+                    messageOverride: message
+                  });
+                }
+                toast({ title: "تم الإرسال", description: `تم إرسال ${debtsWithWhatsApp.length} تنبيه للديون المتأخرة` });
+              }}
+              className="w-full mt-2"
+              variant="destructive"
+              disabled={!settings.whatsapp_enabled || sendReminderMutation.isPending}
+            >
+              <Send className="w-4 h-4 ml-2" />
+              إرسال تنبيهات الديون المتأخرة
             </Button>
           </CardContent>
         </Card>
@@ -714,59 +907,70 @@ const WhatsAppReminders = () => {
         </Card>
       </div>
 
-      {/* قائمة الأقساط المستحقة */}
+      {/* قائمة الديون المتأخرة */}
       <Card className="card-elegant">
         <CardHeader>
           <CardTitle className="flex items-center space-x-reverse space-x-2">
-            <Users className="h-5 w-5 text-accent" />
-            <span>{language === 'ar' ? 'الأقساط المستحقة قريباً' : 'قیستە دەستپێبووەکان بەم زوانە'}</span>
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            <span>الديون المتأخرة</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {debtsLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="text-muted-foreground mt-2">جاري تحميل البيانات...</p>
+              <p className="text-muted-foreground mt-2">جاري تحميل الديون المتأخرة...</p>
             </div>
-          ) : upcomingInstallments?.length === 0 ? (
+          ) : overdueDebts?.length === 0 ? (
             <div className="text-center py-8">
               <CheckCircle className="h-12 w-12 text-secondary mx-auto mb-4" />
-              <p className="text-muted-foreground">لا توجد أقساط مستحقة في الفترة المحددة</p>
+              <p className="text-muted-foreground">لا توجد ديون متأخرة</p>
             </div>
           ) : (
-            <ScrollArea className="h-96">
+            <ScrollArea className="h-64">
               <div className="space-y-3">
-                {upcomingInstallments?.map((installment) => (
+                {overdueDebts?.map((debt) => (
                   <div
-                    key={installment.id}
-                    className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                    key={debt.id}
+                    className="flex items-center justify-between p-4 border border-destructive/20 rounded-lg hover:bg-destructive/5 transition-colors"
                   >
                     <div className="flex items-center space-x-reverse space-x-3">
-                      {getStatusIcon(installment.days_until_due)}
+                      <AlertTriangle className="h-4 w-4 text-destructive" />
                       <div>
-                        <p className="font-medium">{installment.customer_name}</p>
+                        <p className="font-medium">{debt.customer_name}</p>
                         <p className="text-sm text-muted-foreground">
-                          {installment.product_name} • {installment.monthly_amount.toLocaleString()} {getCurrencySymbol(currencySettings?.currency)}
+                          {debt.amount.toLocaleString()} {getCurrencySymbol(debt.currency)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {format(new Date(installment.next_payment_date), "yyyy/MM/dd")}
+                          متأخر {debt.days_overdue} يوم • {format(new Date(debt.due_date), "yyyy/MM/dd")}
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-reverse space-x-2">
-                      <Badge className={getStatusColor(installment.days_until_due)}>
-                        {installment.days_until_due === 0 ? "اليوم" :
-                         installment.days_until_due === 1 ? "غداً" :
-                         `بعد ${installment.days_until_due} يوم`}
-                      </Badge>
-
-                      {installment.whatsapp_number ? (
+                      {debt.whatsapp_number ? (
                         <Button
                           size="sm"
+                          variant="destructive"
                           onClick={() => {
-                            const defaultMessage = `مرحباً ${installment.customer_name}،\n\nتذكير بدفع القسط المستحق:\n\n📱 المنتج: ${installment.product_name}\n💰 المبلغ: ${installment.monthly_amount.toLocaleString()} ${getCurrencySymbol(currencySettings?.currency)}\n📅 تاريخ الاستحقاق: ${format(new Date(installment.next_payment_date), "yyyy/MM/dd")}\n⏰ باقي: ${installment.days_until_due} يوم\n\nيرجى تسديد المبلغ في الموعد المحدد.\n\nشكراً لتعاونكم.`;
-                            setActiveInstallment(installment);
+                            const defaultMessage = getTranslation(messageLanguage)['overdueDebtMessage']
+                              .replace('{customer_name}', debt.customer_name)
+                              .replace('{amount}', debt.amount.toLocaleString())
+                              .replace('{currency}', getCurrencySymbol(debt.currency))
+                              .replace('{due_date}', format(new Date(debt.due_date), messageLanguage === 'ar' ? "dd/MM/yyyy" : "yyyy/MM/dd"))
+                              .replace('{days_overdue}', debt.days_overdue.toString())
+                              .replace('{description}', debt.description ? `📝 ${debt.description}\n\n` : '');
+                            setActiveInstallment({
+                              id: debt.id,
+                              customer_name: debt.customer_name,
+                              customer_phone: debt.customer_phone,
+                              whatsapp_number: debt.whatsapp_number,
+                              product_name: debt.description || 'دين',
+                              monthly_amount: debt.amount,
+                              next_payment_date: debt.due_date,
+                              days_until_due: -debt.days_overdue,
+                              status: 'متأخر'
+                            });
                             setCustomMessage(defaultMessage);
                             setDialogOpen(true);
                           }}

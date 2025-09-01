@@ -16,6 +16,8 @@ import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { useRecentDebts } from "@/hooks/use-recent-debts";
 import { useUpcomingInstallments } from "@/hooks/use-upcoming-installments";
 import { useCurrencySettings, formatCurrency } from "@/hooks/use-currency-settings";
+import { useLanguage } from '@/contexts/LanguageContext';
+import { t } from '../lib/translations';
 
 const Dashboard = () => {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
@@ -30,22 +32,20 @@ const Dashboard = () => {
       {/* Page Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">لوحة التحكم</h1>
-          <p className="text-muted-foreground mt-1">
-            نظرة شاملة على الديون والأقساط
-          </p>
+      <h1 className="text-3xl font-bold text-foreground">{t('dashboard')}</h1>
+      <p className="text-muted-foreground mt-1">{t('dashboardSubtitle')}</p>
         </div>
         <div className="flex space-x-reverse space-x-4">
           <Link to="/debts/new">
             <Button className="btn-primary">
               <Plus className="w-4 h-4 ml-2" />
-              دين جديد
+        {t('newDebtButton')}
             </Button>
           </Link>
           <Link to="/installments/new">
             <Button variant="outline" className="btn-success">
               <Plus className="w-4 h-4 ml-2" />
-              قسط جديد
+        {t('newInstallmentButton')}
             </Button>
           </Link>
         </div>
@@ -56,7 +56,7 @@ const Dashboard = () => {
         <Card className="card-elegant">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              إجمالي الديون
+              {t('totalDebtsLabel')}
             </CardTitle>
             <DollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
@@ -66,7 +66,7 @@ const Dashboard = () => {
             </div>
             <p className="text-xs text-muted-foreground">
               <TrendingUp className="inline w-3 h-3 ml-1 text-secondary" />
-              +12% من الشهر الماضي
+              {t('dashboardGrowth').replace('%d', '12%')}
             </p>
           </CardContent>
         </Card>
@@ -74,7 +74,7 @@ const Dashboard = () => {
         <Card className="card-elegant">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              إجمالي الأقساط
+              {t('totalInstallmentsLabel')}
             </CardTitle>
             <CreditCard className="h-4 w-4 text-accent" />
           </CardHeader>
@@ -84,7 +84,7 @@ const Dashboard = () => {
             </div>
             <p className="text-xs text-muted-foreground">
               <TrendingUp className="inline w-3 h-3 ml-1 text-secondary" />
-              +8% من الشهر الماضي
+              {t('dashboardGrowth').replace('%d', '8%')}
             </p>
           </CardContent>
         </Card>
@@ -92,7 +92,7 @@ const Dashboard = () => {
         <Card className="card-elegant">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              العملاء النشطون
+              {t('activeCustomersLabel')}
             </CardTitle>
             <Users className="h-4 w-4 text-secondary" />
           </CardHeader>
@@ -102,7 +102,7 @@ const Dashboard = () => {
             </div>
             <p className="text-xs text-muted-foreground">
               <CheckCircle className="inline w-3 h-3 ml-1 text-secondary" />
-              عميل نشط
+              {t('activeClientsCountLabel')}
             </p>
           </CardContent>
         </Card>
@@ -110,7 +110,7 @@ const Dashboard = () => {
         <Card className="card-elegant border-destructive/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              المدفوعات المتأخرة
+              {t('overduePaymentsLabel')}
             </CardTitle>
             <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
@@ -119,7 +119,7 @@ const Dashboard = () => {
               {isLoading ? "..." : (stats?.overduePayments || 0)}
             </div>
             <p className="text-xs text-destructive">
-              يتطلب متابعة فورية
+              {t('info')}
             </p>
           </CardContent>
         </Card>
@@ -129,15 +129,15 @@ const Dashboard = () => {
         {/* Recent Debts */}
         <Card className="card-elegant">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-reverse space-x-2">
+              <CardTitle className="flex items-center space-x-reverse space-x-2">
               <DollarSign className="h-5 w-5 text-primary" />
-              <span>الديون الحديثة</span>
+              <span>{t('recentDebtsTitle')}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {isLoading ? (
-                <div className="text-center text-muted-foreground">جاري التحميل...</div>
+                <div className="text-center text-muted-foreground">{t('loadingData')}</div>
               ) : recentDebts && recentDebts.length > 0 ? (
                 recentDebts.map((debt) => (
                   <div key={debt.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
@@ -156,13 +156,13 @@ const Dashboard = () => {
                   </div>
                 ))
               ) : (
-                <div className="text-center text-muted-foreground">لا توجد ديون حديثة</div>
+                <div className="text-center text-muted-foreground">{t('noRecentDebts')}</div>
               )}
             </div>
             <div className="mt-4">
               <Link to="/debts">
-                <Button variant="outline" className="w-full">
-                  عرض جميع الديون
+                  <Button variant="outline" className="w-full">
+                  {t('viewAllDebts')}
                 </Button>
               </Link>
             </div>
@@ -172,15 +172,15 @@ const Dashboard = () => {
         {/* Upcoming Installments */}
         <Card className="card-elegant">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-reverse space-x-2">
+              <CardTitle className="flex items-center space-x-reverse space-x-2">
               <Clock className="h-5 w-5 text-warning" />
-              <span>الأقساط القادمة</span>
+              <span>{t('upcomingInstallmentsTitle')}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {isLoading ? (
-                <div className="text-center text-muted-foreground">جاري التحميل...</div>
+                <div className="text-center text-muted-foreground">{t('loadingData')}</div>
               ) : upcomingInstallments && upcomingInstallments.length > 0 ? (
                 upcomingInstallments.map((installment) => (
                   <div key={installment.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
@@ -188,7 +188,7 @@ const Dashboard = () => {
                       <p className="font-medium text-foreground">{installment.customer}</p>
                       <p className="text-sm text-muted-foreground">{installment.product}</p>
                       <p className="text-xs text-muted-foreground">
-                        الاستحقاق: {installment.dueDate}
+                        {t('dueLabel')}: {installment.dueDate}
                       </p>
                     </div>
                     <div className="text-left">
@@ -197,19 +197,19 @@ const Dashboard = () => {
                       </p>
                       <Badge className="badge-warning">
                         <Clock className="w-3 h-3 ml-1" />
-                        قادم
+                        {t('upcomingLabel')}
                       </Badge>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center text-muted-foreground">لا توجد أقساط قادمة</div>
+                <div className="text-center text-muted-foreground">{t('noUpcomingInstallments')}</div>
               )}
             </div>
             <div className="mt-4">
               <Link to="/installments">
                 <Button variant="outline" className="w-full">
-                  عرض جميع الأقساط
+                  {t('viewAllInstallments')}
                 </Button>
               </Link>
             </div>

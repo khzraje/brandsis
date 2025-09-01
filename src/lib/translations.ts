@@ -97,6 +97,81 @@ export interface Translations {
   exportDataLabel: string;
   importDataLabel: string;
 
+  // additional labels found in UI / settings
+  outstandingInstallmentsTotal: string;
+  hasWhatsappNumber: string;
+  dueToday: string;
+  totalOverdueDebts: string;
+  sendOverdueDebtsReminders: string;
+  enableWhatsApp: string;
+  whatsappApiUrl: string;
+  whatsappApiKey: string;
+  senderNumber: string;
+  daysBeforeReminder: string;
+
+  appSettingsAndBackups: string;
+  appearance: string;
+  theme: string;
+  dark: string;
+  primaryColor: string;
+  languageUsed: string;
+  kurdishSoraniLabel: string;
+  languageChangeConfirmMessage: string;
+  languageInfo: string;
+
+  currencySettings: string;
+  currencyUsed: string;
+  IQDLabel: string;
+  currencyInfo: string;
+
+  enableNotifications: string;
+  inAppNotifications: string;
+
+  telegramSettings: string;
+  enableTelegram: string;
+  telegramBotToken: string;
+  telegramChatId: string;
+
+  createBackupLabel: string;
+  noFileChosenLabel: string;
+  restoreBackupLabel: string;
+  importWarningMessage: string;
+
+  overviewLabel: string;
+  newDebtLabel: string;
+  newInstallmentLabel: string;
+  totalDebtsLabel: string;
+  totalInstallmentsLabel: string;
+  activeClientsLabel: string;
+  activeClientsCountLabel: string;
+  overduePaymentsDashboardLabel: string;
+  recentDebtsLabel: string;
+  viewAllDebts: string;
+  viewAllInstallments: string;
+  noUpcomingInstallmentsLabel: string;
+  manageCustomersLabel: string;
+  addNewCustomerLabel: string;
+  searchCustomersPlaceholder: string;
+  totalCustomersLabel: string;
+  logoutButton: string;
+
+  // dashboard specific
+  dashboardSubtitle: string;
+  newDebtButton: string;
+  newInstallmentButton: string;
+  dashboardGrowth: string;
+  activeCustomersLabel: string;
+  overduePaymentsLabel: string;
+  recentDebtsTitle: string;
+  upcomingInstallmentsTitle: string;
+  noRecentDebts: string;
+  noUpcomingInstallments: string;
+  dueLabel: string;
+  upcomingLabel: string;
+
+  // whatsapp specific
+  overdueDebtMessage: string;
+
   openMessage: string;
   templatesLabel: string;
   applyLabel: string;
@@ -223,6 +298,81 @@ const arabicTranslations: Translations = {
   saveSettingsLabel: 'حفظ الإعدادات',
   exportDataLabel: 'تصدير البيانات',
   importDataLabel: 'استيراد البيانات',
+
+  // additional labels
+  outstandingInstallmentsTotal: 'إجمالي الأقساط المستحقة:',
+  hasWhatsappNumber: 'لها رقم WhatsApp:',
+  dueToday: 'مستحقة اليوم:',
+  totalOverdueDebts: 'إجمالي الديون المتأخرة:',
+  sendOverdueDebtsReminders: 'إرسال تنبيهات الديون المتأخرة',
+  enableWhatsApp: 'تمكين WhatsApp',
+  whatsappApiUrl: 'رابط API الواتساب',
+  whatsappApiKey: 'مفتاح API',
+  senderNumber: 'رقم المرسل',
+  daysBeforeReminder: 'عدد الأيام قبل التنبيه',
+
+  appSettingsAndBackups: 'إعدادات التطبيق والنسخ الاحتياطية',
+  appearance: 'المظهر',
+  theme: 'سمة التطبيق',
+  dark: 'غامق',
+  primaryColor: 'اللون الأساسي',
+  languageUsed: 'اللغة المستخدمة',
+  kurdishSoraniLabel: 'کوردیی سۆرانی',
+  languageChangeConfirmMessage: 'سيتم تغيير لغة التطبيق إلى الكردية السورانية',
+  languageInfo: '• العربية: اللغة الافتراضية للتطبيق\n\n• کوردیی سۆرانی: اللغة الكردية السورانية\n\n• يمكن تغيير اللغة في أي وقت\n\n• سيتم حفظ اختيارك تلقائياً',
+
+  currencySettings: 'إعدادات العملة',
+  currencyUsed: 'العملة المستخدمة',
+  IQDLabel: 'الدينار العراقي (IQD)',
+  currencyInfo: '• الدينار العراقي (IQD): العملة الرسمية في العراق\n\n• الدولار الأمريكي (USD): العملة الدولية\n\n• يمكن تغيير العملة في أي وقت\n\n• سيتم تحديث جميع العرض في التطبيق فوراً',
+
+  enableNotifications: 'تمكين الإشعارات',
+  inAppNotifications: 'استقبال إشعارات داخل التطبيق',
+
+  telegramSettings: 'إعدادات تليجرام',
+  enableTelegram: 'تمكين تليجرام',
+  telegramBotToken: 'رمز البوت (Bot Token)',
+  telegramChatId: 'معرف المحادثة (Chat ID)',
+
+  createBackupLabel: 'إنشاء نسخة احتياطية',
+  noFileChosenLabel: 'No file chosen',
+  restoreBackupLabel: 'استعادة نسخة احتياطية',
+  importWarningMessage: 'تنبيه: استيراد البيانات سيحل محل جميع البيانات الحالية. تأكد من إنشاء نسخة احتياطية قبل الاستيراد.',
+
+  overviewLabel: 'نظرة شاملة على الديون والأقساط',
+  newDebtLabel: 'دين جديد',
+  newInstallmentLabel: 'قسط جديد',
+  totalDebtsLabel: 'إجمالي الديون',
+  totalInstallmentsLabel: 'إجمالي الأقساط',
+  activeClientsLabel: 'العملاء النشطون',
+  activeClientsCountLabel: 'عميل نشط',
+  overduePaymentsDashboardLabel: 'المدفوعات المتأخرة',
+  recentDebtsLabel: 'الديون الحديثة',
+  viewAllDebts: 'عرض جميع الديون',
+  viewAllInstallments: 'عرض جميع الأقساط',
+  noUpcomingInstallmentsLabel: 'لا توجد أقساط قادمة',
+  manageCustomersLabel: 'إدارة العملاء',
+  addNewCustomerLabel: 'إضافة عميل جديد',
+  searchCustomersPlaceholder: 'البحث في العملاء...',
+  totalCustomersLabel: 'إجمالي العملاء',
+  logoutButton: 'زر تسجيل الخروج',
+
+  // dashboard specific
+  dashboardSubtitle: 'نظرة شاملة على الديون والأقساط',
+  newDebtButton: 'دين جديد',
+  newInstallmentButton: 'قسط جديد',
+  dashboardGrowth: '+ %d من الشهر الماضي',
+  activeCustomersLabel: 'العملاء النشطون',
+  overduePaymentsLabel: 'المدفوعات المتأخرة',
+  recentDebtsTitle: 'الديون الحديثة',
+  upcomingInstallmentsTitle: 'الأقساط القادمة',
+  noRecentDebts: 'لا توجد ديون حديثة',
+  noUpcomingInstallments: 'لا توجد أقساط قادمة',
+  dueLabel: 'الاستحقاق',
+  upcomingLabel: 'قادم',
+
+  // whatsapp specific
+  overdueDebtMessage: `مرحباً {customer_name}،\n\nتذكير بدفع الدين المستحق:\n\n💰 المبلغ: {amount} {currency}\n📅 تاريخ الاستحقاق: {due_date}\n⏰ متأخر: {days_overdue} يوم\n\n{description}يرجى تسديد المبلغ في أقرب وقت ممكن.\n\nشكراً لتعاونكم.`,
   openMessage: 'فتح رسالة',
   templatesLabel: 'قوالب الرسائل',
   applyLabel: 'تطبيق',
@@ -344,6 +494,81 @@ const kurdishTranslations: Translations = {
   saveSettingsLabel: 'پاشەکەوتکردنی ڕێکخستنەکان',
   exportDataLabel: 'دراوکردنی داتا',
   importDataLabel: 'هێنانەوەی داتا',
+
+  // additional labels
+  outstandingInstallmentsTotal: 'کۆی قەسطەکانی دەسەنگرابوو:',
+  hasWhatsappNumber: 'ژمارەی WhatsApp هەیە:',
+  dueToday: 'ئەمڕۆ دەستپێکراوە:',
+  totalOverdueDebts: 'کۆی قەرزە دواخراوەکان:',
+  sendOverdueDebtsReminders: 'ناردنی بیرهێنانی قەرزانى دواخراو',
+  enableWhatsApp: 'چالاککردنی WhatsApp',
+  whatsappApiUrl: 'ڕێکەوتی API ی واتسئاپ',
+  whatsappApiKey: 'کلیل API',
+  senderNumber: 'ژمارەی نێردەر',
+  daysBeforeReminder: 'ژمارەی ڕۆژ پێش ئاگاداری',
+
+  appSettingsAndBackups: 'ڕێکخستنەکانی بەرنامە و پاشەکەوتەکان',
+  appearance: 'ڕووکار',
+  theme: 'شێوەی بەرنامە',
+  dark: 'تاریک',
+  primaryColor: 'ڕەنگی سەرەکی',
+  languageUsed: 'زمانی بەکارھاتوو',
+  kurdishSoraniLabel: 'کوردیی سۆرانی',
+  languageChangeConfirmMessage: 'زمانی بەرنامە دەگۆڕدرێتەوە بۆ کوردیی سۆرانی',
+  languageInfo: '• عەرەبی: زمانە بنەڕەتییەکەی بەرنامە\n\n• کوردیی سۆرانی: زمانى کوردى سۆرانی\n\n• دەتوانیت زمانەکە بگۆڕیت هەر کاتێک\n\n• هەڵبژاردنی تۆ بەخۆی پاشەکەوت دەکرێت',
+
+  currencySettings: 'ڕێکخستنەکانی دراو',
+  currencyUsed: 'درایە بەکارهاتوو',
+  IQDLabel: 'دیناری عێراقی (IQD)',
+  currencyInfo: '• دیناری عێراقی (IQD): دراوە رەسمییەکەی عێراق\n\n• دۆلارى ئەمەریکا (USD): دراوی نێودەوڵەتی\n\n• دەتوانرێت دراوەکە هەر کاتێک بگۆڕدرێت\n\n• هەموو نیشاندانی بەرنامەدابەزێتەوە',
+
+  enableNotifications: 'چالاککردنی ئاگادارییەکان',
+  inAppNotifications: 'وەرگرتنی ئاگاداری لە ناو بەرنامە',
+
+  telegramSettings: 'ڕێکخستنەکانی تێلێگرام',
+  enableTelegram: 'چالاککردنی تێلێگرام',
+  telegramBotToken: 'کۆدی بۆت (Bot Token)',
+  telegramChatId: 'ناسنامەی گفتوگۆ (Chat ID)',
+
+  createBackupLabel: 'دروستکردنی پاشەکەوتەوە',
+  noFileChosenLabel: 'No file chosen',
+  restoreBackupLabel: 'گەڕاندنەوەی پاشەکەوت',
+  importWarningMessage: 'ئاگاداری: هێنانەوەی داتا هەموو داتاکان دەگۆڕێت. تکایە پێش هێنانەوە، پاشەکەوتێک دروست بکە.',
+
+  overviewLabel: 'پوختەیەکی گشتی لەسەر قەرزان و قەسطەکان',
+  newDebtLabel: 'قەرزی نوێ',
+  newInstallmentLabel: 'قیستی نوێ',
+  totalDebtsLabel: 'کۆی قەرزان',
+  totalInstallmentsLabel: 'کۆی قەسطەکان',
+  activeClientsLabel: 'کڕیارانی چالاک',
+  activeClientsCountLabel: 'کڕیارێکی چالاک',
+  overduePaymentsDashboardLabel: 'پارەدانە دواخراوەکان',
+  recentDebtsLabel: 'قەرزە نوێکان',
+  viewAllDebts: 'بینینی هەموو قەرزان',
+  viewAllInstallments: 'بینینی هەموو قەسطەکان',
+  noUpcomingInstallmentsLabel: 'قەسطێک ئەم مۆنە نییە',
+  manageCustomersLabel: 'بەڕێوەبردنی کڕیاران',
+  addNewCustomerLabel: 'زیادکردنی کڕیارێکی نوێ',
+  searchCustomersPlaceholder: 'گەڕان لە کڕیاران...',
+  totalCustomersLabel: 'کۆی کڕیاران',
+  logoutButton: 'تکایە دەرچوون (Logout)',
+
+  // dashboard specific
+  dashboardSubtitle: 'پوختەیەکی گشتی لەسەر قەرزان و قەسطەکان',
+  newDebtButton: 'قەرزی نوێ',
+  newInstallmentButton: 'قیستی نوێ',
+  dashboardGrowth: '+ %d لە مانگی ڕابردوو',
+  activeCustomersLabel: 'کڕیارانی چالاک',
+  overduePaymentsLabel: 'پارەدانە دواخراوەکان',
+  recentDebtsTitle: 'قەرزە نوێکان',
+  upcomingInstallmentsTitle: 'قیستە داهاتووەکان',
+  noRecentDebts: 'قەرزی نوێ نییە',
+  noUpcomingInstallments: 'قیستی داهاتوو نییە',
+  dueLabel: 'دەستپێکردن',
+  upcomingLabel: 'داهاتوو',
+
+  // whatsapp specific
+  overdueDebtMessage: `سڵاو {customer_name}،\n ئەم نامەیە لە سیستەمەوە نێردراوە ، بیرهێنانەوەی پارەدانی ئەو بڕە پارەیەی کە دەبێ بدرێت:\n\n💰 بڕ: {amount} {currency}\n📅 ڕێکەوتی کڕین: {due_date}\n⏰ دواخراو: {days_overdue} ڕۆژ\n\n{description}تکایە سەردانمان بکە.\n\nسوپاس بۆ هاوکاریتان.`,
   openMessage: 'کردنەوەی نامە',
   templatesLabel: 'قالبە نامەکان',
   applyLabel: 'ئەپلای',

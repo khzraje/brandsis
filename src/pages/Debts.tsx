@@ -34,6 +34,7 @@ interface Debt {
   status: string;
   due_date?: string;
   payment_method?: string;
+  currency?: string;
   created_at: string;
   customers?: {
     id: string;
@@ -54,7 +55,8 @@ const Debts = () => {
     description: "",
     notes: "",
     status: "",
-    due_date: ""
+    due_date: "",
+    currency: "IQD"
   });
   const { toast } = useToast();
   const { data: currencySettings } = useCurrencySettings();
@@ -104,7 +106,8 @@ const Debts = () => {
           description: editForm.description,
           notes: editForm.notes,
           status: editForm.status,
-          due_date: editForm.due_date || null
+          due_date: editForm.due_date || null,
+          currency: editForm.currency
         })
         .eq('id', editingDebt.id);
 
@@ -134,8 +137,20 @@ const Debts = () => {
       description: debt.description || "",
       notes: debt.notes || "",
       status: debt.status,
-      due_date: debt.due_date || ""
+      due_date: debt.due_date || "",
+      currency: debt.currency || "IQD"
     });
+  };
+
+  const getDaysOverdue = (dueDate?: string): number => {
+    if (!dueDate) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    const diffTime = today.getTime() - due.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
   };
 
   const filteredDebts = debts.filter(debt =>
@@ -157,7 +172,15 @@ const Debts = () => {
   };
 
   const totalDebts = debts.reduce((sum, debt) => debt.status !== "مكتمل" ? sum + debt.amount : sum, 0);
-  const overdueDebts = debts.filter(debt => debt.status === "متأخر").length;
+  const overdueDebts = debts.filter(debt => {
+    if (debt.status === "مكتمل") return false;
+    if (!debt.due_date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(debt.due_date);
+    dueDate.setHours(0, 0, 0, 0);
+    return dueDate < today;
+  }).length;
   const activeDebts = debts.filter(debt => debt.status === "نشط").length;
 
   if (isLoading) {
@@ -265,8 +288,36 @@ const Debts = () => {
                     </div>
                   </div>
                 </div>
-                <Badge className={getStatusColor(debt.status)}>
-                  {debt.status}
+                <Badge className={(() => {
+                  if (debt.status === "مكتمل") return getStatusColor(debt.status);
+                  if (!debt.due_date) return getStatusColor(debt.status);
+                  
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const dueDate = new Date(debt.due_date);
+                  dueDate.setHours(0, 0, 0, 0);
+                  
+                  if (dueDate < today) {
+                    return getStatusColor("متأخر");
+                  }
+                  
+                  return getStatusColor(debt.status);
+                })()}>
+                  {(() => {
+                    if (debt.status === "مكتمل") return debt.status;
+                    if (!debt.due_date) return debt.status;
+                    
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const dueDate = new Date(debt.due_date);
+                    dueDate.setHours(0, 0, 0, 0);
+                    
+                    if (dueDate < today) {
+                      return "متأخر";
+                    }
+                    
+                    return debt.status;
+                  })()}
                 </Badge>
               </div>
             </CardHeader>
@@ -284,7 +335,7 @@ const Debts = () => {
                     <div>
                       <p className="text-xs text-muted-foreground">المبلغ</p>
                       <p className="text-lg font-bold text-primary number-arabic">
-                        {formatCurrency(debt.amount, currencySettings?.currency)}
+                        {formatCurrency(debt.amount, debt.currency || currencySettings?.currency)}
                       </p>
                     </div>
                     <div>
@@ -292,6 +343,25 @@ const Debts = () => {
                       <p className="text-sm font-medium text-foreground">
                         {debt.due_date ? format(new Date(debt.due_date), "dd/MM/yyyy") : 'غير محدد'}
                       </p>
+                      {(() => {
+                        if (!debt.due_date || debt.status === "مكتمل") return null;
+                        
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const dueDate = new Date(debt.due_date);
+                        dueDate.setHours(0, 0, 0, 0);
+                        
+                        if (dueDate < today) {
+                          const daysOverdue = Math.ceil((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+                          return (
+                            <p className="text-xs text-destructive">
+                              متأخر {daysOverdue} يوم
+                            </p>
+                          );
+                        }
+                        
+                        return null;
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -358,7 +428,7 @@ const Debts = () => {
           </DialogHeader>
           <form onSubmit={handleEditDebt} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-amount">المبلغ ({getCurrencySymbol(currencySettings?.currency)})</Label>
+              <Label htmlFor="edit-amount">المبلغ ({getCurrencySymbol(editForm.currency || currencySettings?.currency)})</Label>
               <Input
                 id="edit-amount"
                 type="number"
@@ -370,18 +440,17 @@ const Debts = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-status">الحالة</Label>
+              <Label htmlFor="edit-currency">العملة</Label>
               <Select
-                value={editForm.status}
-                onValueChange={(value) => setEditForm(prev => ({...prev, status: value}))}
+                value={editForm.currency}
+                onValueChange={(value) => setEditForm(prev => ({...prev, currency: value}))}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="نشط">نشط</SelectItem>
-                  <SelectItem value="متأخر">متأخر</SelectItem>
-                  <SelectItem value="مكتمل">مكتمل</SelectItem>
+                  <SelectItem value="IQD">دينار عراقي (د.ع)</SelectItem>
+                  <SelectItem value="USD">دولار أمريكي ($)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -402,6 +471,16 @@ const Debts = () => {
                 value={editForm.notes}
                 onChange={(e) => setEditForm(prev => ({...prev, notes: e.target.value}))}
                 rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-due-date">تاريخ الاستحقاق</Label>
+              <Input
+                id="edit-due-date"
+                type="date"
+                value={editForm.due_date}
+                onChange={(e) => setEditForm(prev => ({...prev, due_date: e.target.value}))}
               />
             </div>
 
@@ -471,8 +550,36 @@ const Debts = () => {
                     </div>
                     <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
                       <span className="text-sm text-muted-foreground">الحالة</span>
-                      <Badge className={getStatusColor(selectedDebt.status)}>
-                        {selectedDebt.status}
+                      <Badge className={(() => {
+                        if (selectedDebt.status === "مكتمل") return getStatusColor(selectedDebt.status);
+                        if (!selectedDebt.due_date) return getStatusColor(selectedDebt.status);
+                        
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const dueDate = new Date(selectedDebt.due_date);
+                        dueDate.setHours(0, 0, 0, 0);
+                        
+                        if (dueDate < today) {
+                          return getStatusColor("متأخر");
+                        }
+                        
+                        return getStatusColor(selectedDebt.status);
+                      })()}>
+                        {(() => {
+                          if (selectedDebt.status === "مكتمل") return selectedDebt.status;
+                          if (!selectedDebt.due_date) return selectedDebt.status;
+                          
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const dueDate = new Date(selectedDebt.due_date);
+                          dueDate.setHours(0, 0, 0, 0);
+                          
+                          if (dueDate < today) {
+                            return "متأخر";
+                          }
+                          
+                          return selectedDebt.status;
+                        })()}
                       </Badge>
                     </div>
                   </div>

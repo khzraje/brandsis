@@ -28,6 +28,7 @@ const NewDebt = () => {
     notes: "",
     payment_method: "",
     due_date: undefined as Date | undefined,
+    currency: "IQD"
   });
 
   const fetchCustomers = useCallback(async () => {
@@ -76,6 +77,7 @@ const NewDebt = () => {
           notes: formData.notes,
           payment_method: formData.payment_method,
           due_date: formData.due_date ? format(formData.due_date, 'yyyy/MM/dd') : null,
+          currency: formData.currency
         }]);
 
       if (error) throw error;
@@ -153,7 +155,7 @@ const NewDebt = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="amount">المبلغ ({getCurrencySymbol(currencySettings?.currency)}) *</Label>
+                  <Label htmlFor="amount">المبلغ ({getCurrencySymbol(formData.currency)}) *</Label>
                   <Input
                     id="amount"
                     type="number"
@@ -163,6 +165,22 @@ const NewDebt = () => {
                     onChange={(e) => setFormData(prev => ({...prev, amount: e.target.value}))}
                     className="number-arabic"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="currency">العملة</Label>
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(value) => setFormData(prev => ({...prev, currency: value}))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="IQD">دينار عراقي (د.ع)</SelectItem>
+                      <SelectItem value="USD">دولار أمريكي ($)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
@@ -199,7 +217,6 @@ const NewDebt = () => {
                         mode="single"
                         selected={formData.due_date}
                         onSelect={(date) => setFormData(prev => ({...prev, due_date: date}))}
-                        disabled={(date) => date < new Date()}
                         initialFocus
                       />
                     </PopoverContent>
@@ -267,7 +284,7 @@ const NewDebt = () => {
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">المبلغ الإجمالي</p>
                   <p className="text-2xl font-bold text-primary number-arabic">
-                    {formData.amount ? formatCurrency(parseFloat(formData.amount), currencySettings?.currency) : formatCurrency(0, currencySettings?.currency)}
+                    {formData.amount ? formatCurrency(parseFloat(formData.amount), formData.currency) : formatCurrency(0, formData.currency)}
                   </p>
                 </div>
               </div>

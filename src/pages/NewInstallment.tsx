@@ -29,6 +29,7 @@ const NewInstallment = () => {
     months_count: "",
     start_date: new Date(),
     notes: "",
+    currency: currencySettings?.currency || "IQD"
   });
   // المنتجات من المخزون
   const [inventoryProducts, setInventoryProducts] = useState<{id?: string, name?: string, price?: number, priceIQD?: number, priceUSD?: number}[]>([]);
@@ -61,7 +62,7 @@ const NewInstallment = () => {
         toast({ title: 'خطأ', description: 'فشل قراءة بيانات المخزون من المتصفح' });
       }
     }
-  }, []);
+  }, [toast]);
 
   const monthlyAmount = formData.total_amount && formData.months_count 
     ? parseFloat(formData.total_amount) / parseInt(formData.months_count) 
@@ -122,6 +123,7 @@ const NewInstallment = () => {
           start_date: format(formData.start_date, 'yyyy-MM-dd'),
           next_payment_date: format(nextPaymentDate, 'yyyy-MM-dd'),
           notes: formData.notes,
+          currency: formData.currency
         }]);
 
       if (error) throw error;
@@ -258,7 +260,7 @@ const NewInstallment = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="total_amount">المبلغ الإجمالي ({getCurrencySymbol(currencySettings?.currency)}) *</Label>
+                    <Label htmlFor="total_amount">المبلغ الإجمالي ({getCurrencySymbol(formData.currency)}) *</Label>
                     <Input
                       id="total_amount"
                       type="number"
@@ -270,6 +272,24 @@ const NewInstallment = () => {
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="currency">العملة</Label>
+                    <Select
+                      value={formData.currency}
+                      onValueChange={(value) => setFormData(prev => ({...prev, currency: value}))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="IQD">دينار عراقي (د.ع)</SelectItem>
+                        <SelectItem value="USD">دولار أمريكي ($)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="months_count">عدد الأشهر *</Label>
                     <Select
@@ -288,31 +308,31 @@ const NewInstallment = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label>تاريخ البداية</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-right font-normal"
-                        )}
-                      >
-                        <CalendarIcon className="ml-2 h-4 w-4" />
-                        {format(formData.start_date, "dd/MM/yyyy")}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={formData.start_date}
-                        onSelect={(date) => date && setFormData(prev => ({...prev, start_date: date}))}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <div className="space-y-2">
+                    <Label>تاريخ البداية</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-right font-normal"
+                          )}
+                        >
+                          <CalendarIcon className="ml-2 h-4 w-4" />
+                          {format(formData.start_date, "dd/MM/yyyy")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.start_date}
+                          onSelect={(date) => date && setFormData(prev => ({...prev, start_date: date}))}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -361,7 +381,7 @@ const NewInstallment = () => {
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">المبلغ الإجمالي</p>
                   <p className="text-2xl font-bold text-primary number-arabic">
-                    {formData.total_amount ? formatCurrency(parseFloat(formData.total_amount), currencySettings?.currency) : formatCurrency(0, currencySettings?.currency)}
+                    {formData.total_amount ? formatCurrency(parseFloat(formData.total_amount), formData.currency) : formatCurrency(0, formData.currency)}
                   </p>
                 </div>
               </div>
@@ -370,7 +390,7 @@ const NewInstallment = () => {
                 <div className="p-3 bg-accent/10 border border-accent/20 rounded-lg">
                   <p className="text-sm text-accent">القسط الشهري</p>
                   <p className="text-xl font-bold text-accent number-arabic">
-                    {formatCurrency(monthlyAmount, currencySettings?.currency)}
+                    {formatCurrency(monthlyAmount, formData.currency)}
                   </p>
                 </div>
               )}
