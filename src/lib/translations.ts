@@ -460,7 +460,7 @@ const kurdishTranslations: Translations = {
   status: 'دۆخ',
 
   // رسائل WhatsApp
-  whatsappReminderMessage: `سڵاو {customer_name}،
+  whatsappReminderMessage: `سڵاو بەرێز {customer_name}،
 
 بیرهێنانەوەی پارەدان بۆ قیست:
 
